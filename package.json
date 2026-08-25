@@ -1,0 +1,36 @@
+{
+  "name": "inner-almox",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Plataforma SaaS multi-tenant e white-label da InnerWorks.",
+  "packageManager": "pnpm@10.26.2",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --recursive --parallel --stream --filter \"./apps/*\" dev",
+    "build": "pnpm --recursive --stream --filter \"./apps/*\" build",
+    "lint": "pnpm --recursive --stream --filter \"./apps/*\" lint",
+    "typecheck": "pnpm --recursive --stream --filter \"./apps/*\" typecheck",
+    "test": "pnpm --recursive --stream --filter \"./apps/*\" test",
+    "dev:turbo": "turbo dev",
+    "build:turbo": "turbo build",
+    "lint:turbo": "turbo lint",
+    "typecheck:turbo": "turbo typecheck",
+    "test:turbo": "turbo test",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^16.4.0",
+    "supabase": "^2.76.8",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.1"
+  }
+}

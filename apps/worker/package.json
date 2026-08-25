@@ -1,0 +1,28 @@
+{
+  "name": "@inner-almox/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env --watch --import tsx src/worker.ts",
+    "build": "tsup src/worker.ts --format esm --clean",
+    "start": "node --env-file-if-exists=../../.env dist/worker.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "bullmq": "^6.0.11",
+    "ioredis": "^5.8.1",
+    "nodemailer": "^9.0.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/nodemailer": "^8.0.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

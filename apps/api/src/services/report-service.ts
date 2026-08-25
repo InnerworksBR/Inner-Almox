@@ -1,0 +1,22 @@
+import ExcelJS from "exceljs";
+import { AppError } from "../errors/app-error";
+import type { ResourcePayload } from "./tenant-resource-service";
+
+export type ReportDomain="assets"|"stock"|"fleet"|"asset-movements"|"stock-movements"|"fuelings";
+export type ReportFormat="csv"|"xlsx";
+export interface ReportFile{content:Buffer;contentType:string;fileName:string}
+export interface ReportService{generate(domain:ReportDomain,format:ReportFormat,tenantId:string,userId:string):Promise<ReportFile>}
+const tableByDomain:Record<ReportDomain,string>={assets:"assets",stock:"stock_balances",fleet:"vehicles","asset-movements":"asset_movements","stock-movements":"stock_movements",fuelings:"vehicle_fuelings"};
+
+export class SupabaseReportService implements ReportService{
+  private readonly restUrl:string;private readonly headers:Record<string,string>;
+  constructor(url:string,key:string){this.restUrl=`${url.replace(/\/$/,"")}/rest/v1`;this.headers={apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json"};}
+  async generate(domain:ReportDomain,format:ReportFormat,tenantId:string,userId:string):Promise<ReportFile>{const params=new URLSearchParams({select:"*",tenant_id:`eq.${tenantId}`,limit:"10000"});const response=await fetch(`${this.restUrl}/${tableByDomain[domain]}?${params.toString()}`,{headers:this.headers});if(!response.ok)throw new AppError("Não foi possível consultar os dados do relatório.",500,"REPORT_QUERY_FAILED");const rows=this.asArray(await response.json());const columns=this.columns(rows);const content=format==="csv"?this.csv(rows,columns):await this.xlsx(rows,columns,domain);await this.audit(tenantId,userId,domain,format,rows.length);return{content,contentType:format==="csv"?"text/csv; charset=utf-8":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",fileName:`inner-almox-${domain}-${new Date().toISOString().slice(0,10)}.${format}`};}
+  private columns(rows:ResourcePayload[]):string[]{return [...new Set(rows.flatMap(row=>Object.keys(row)))].filter(column=>column!=="tenant_id").sort();}
+  private safe(value:unknown):string{if(value===null||value===undefined)return"";let raw="";if(typeof value==="object")raw=JSON.stringify(value)??"";else if(typeof value==="string"||typeof value==="number"||typeof value==="boolean"||typeof value==="bigint")raw=String(value);return /^[=+\-@]/.test(raw)?`'${raw}`:raw;}
+  private csv(rows:ResourcePayload[],columns:string[]):Buffer{const escape=(value:string)=>`"${value.replaceAll('"','""')}"`;const lines=[columns.map(escape).join(","),...rows.map(row=>columns.map(column=>escape(this.safe(row[column]))).join(","))];return Buffer.from(`\uFEFF${lines.join("\r\n")}`,"utf8");}
+  private async xlsx(rows:ResourcePayload[],columns:string[],domain:string):Promise<Buffer>{const workbook=new ExcelJS.Workbook();workbook.creator="Inner Almox";workbook.created=new Date();const sheet=workbook.addWorksheet(domain.slice(0,31));sheet.columns=columns.map(column=>({header:column,key:column,width:Math.min(40,Math.max(14,column.length+2))}));for(const row of rows)sheet.addRow(Object.fromEntries(columns.map(column=>[column,this.safe(row[column])])));const header=sheet.getRow(1);header.font={bold:true,color:{argb:"FFFFFFFF"}};header.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF176B4D"}};header.alignment={vertical:"middle"};sheet.autoFilter={from:{row:1,column:1},to:{row:Math.max(1,rows.length+1),column:Math.max(1,columns.length)}};sheet.views=[{state:"frozen",ySplit:1}];const data=await workbook.xlsx.writeBuffer();return Buffer.from(data);}
+  private asArray(value:unknown):ResourcePayload[]{if(!Array.isArray(value)||!value.every(item=>typeof item==="object"&&item!==null&&!Array.isArray(item)))throw new AppError("Resposta inválida do banco.",500,"INVALID_DATABASE_RESPONSE");return value as ResourcePayload[];}
+  private async audit(tenantId:string,userId:string,domain:string,format:string,count:number):Promise<void>{const response=await fetch(`${this.restUrl}/audit_logs`,{method:"POST",headers:this.headers,body:JSON.stringify({tenant_id:tenantId,user_id:userId,action:"export.report",entity_type:"report",entity_id:domain,new_values:{format,count}})});if(!response.ok)throw new AppError("A exportação não pôde ser auditada.",500,"AUDIT_WRITE_FAILED");}
+}
+export class UnconfiguredReportService implements ReportService{generate():Promise<ReportFile>{throw new AppError("Relatórios não configurados.",503,"REPORTS_UNCONFIGURED");}}

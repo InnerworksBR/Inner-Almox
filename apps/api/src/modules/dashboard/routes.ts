@@ -1,0 +1,3 @@
+import type{FastifyPluginAsync}from"fastify";import{AppError}from"../../errors/app-error";import{requireTenantContext}from"../../middleware/require-tenant-context";import type{DashboardService}from"../../services/dashboard-service";import type{ContextResolver}from"../../types/context";
+interface Options{contextResolver:ContextResolver;dashboardService:DashboardService}
+export const dashboardRoutes:FastifyPluginAsync<Options>=async(app,{contextResolver,dashboardService})=>{app.get("/v1/dashboard",{preHandler:requireTenantContext(contextResolver)},async request=>{const context=request.tenantContext;if(!context)throw new AppError("Contexto ausente.",401,"TENANT_CONTEXT_REQUIRED");return{data:await dashboardService.metrics(context.tenantId)};});};
