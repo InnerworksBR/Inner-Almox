@@ -2,6 +2,20 @@
 
 Base local: `http://localhost:3333`. Erros usam `{ "error": { "code", "message" }, "requestId" }`. Rotas tenant-scoped exigem `Authorization: Bearer <JWT>` e resolvem o tenant pelo hostname normalizado (`Host` ou `x-tenant-hostname`). O hostname seleciona o contexto; membership ativa continua obrigatória.
 
+## Consulta das listagens
+
+Todas as rotas `GET` de coleção aceitam `busca`, `pagina`, `tamanho` (máximo 100), `ordenar` e
+`direcao` (`asc`/`desc`), além dos filtros previstos para cada tabela — por exemplo
+`GET /v1/stock/movements?type=purchase_in`. A resposta traz `{ data, total, pagina, tamanho }`.
+
+Os campos pesquisáveis, ordenáveis e filtráveis são definidos no backend, em
+`services/resource-query-config.ts`; parâmetro fora dessa lista recebe `422`
+(`FILTER_NOT_ALLOWED` ou `ORDER_NOT_ALLOWED`). As listagens também devolvem os dados relacionados
+já resolvidos (categoria, filial, localização, responsável, ativo), evitando exibir identificadores.
+
+O escopo por papel continua aplicado sobre qualquer consulta: um colaborador que pesquisa ativos só
+encontra aqueles sob sua responsabilidade.
+
 ## Infraestrutura e contexto
 
 - `GET /health`

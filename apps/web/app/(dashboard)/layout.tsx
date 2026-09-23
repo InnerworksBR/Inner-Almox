@@ -24,6 +24,11 @@ function stringValue(row: Row | null, key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function countFromResponse(response: unknown): number {
+  if (typeof response !== "object" || response === null || !("count" in response)) return 0;
+  return typeof response.count === "number" ? response.count : 0;
+}
+
 export default async function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -42,14 +47,27 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   const roles=isPlatformAdmin?[...tenantRoles,"platform_superadmin"]:tenantRoles;
   const tenantResponse: unknown = tenantId ? await supabase.from("tenants").select("legal_name,product_name").eq("id", tenantId).maybeSingle() : { data: null };
   const brandingResponse: unknown = tenantId ? await supabase.from("tenant_branding").select("product_name,logo_path,primary_color,secondary_color").eq("tenant_id", tenantId).maybeSingle() : { data: null };
+  const profileResponse: unknown = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+  // Somente o que pertence ao usuário ou foi enviado a todos, para o contador do sino
+  // não inflar com as notificações pessoais de outras pessoas do tenant.
+  const unreadResponse: unknown = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .is("read_at", null)
+    .or(`user_id.eq.${user.id},user_id.is.null`);
   const tenant = rowFromResponse(tenantResponse);
   const branding = rowFromResponse(brandingResponse);
 
-  return <AppShell userEmail={user.email ?? "Usuário Inner Almox"} roles={roles} brand={{
-    companyName: stringValue(tenant, "legal_name") ?? "InnerWorks",
-    productName: stringValue(branding, "product_name") ?? stringValue(tenant, "product_name") ?? stringValue(tenant, "legal_name") ?? "Inner Almox",
-    logoPath: stringValue(branding, "logo_path"),
-    primaryColor: stringValue(branding, "primary_color"),
-    secondaryColor: stringValue(branding, "secondary_color"),
-  }}>{children}</AppShell>;
+  return <AppShell
+    userEmail={user.email ?? "Usuário Inner Almox"}
+    userName={stringValue(rowFromResponse(profileResponse), "full_name")}
+    roles={roles}
+    unreadCount={countFromResponse(unreadResponse)}
+    brand={{
+      companyName: stringValue(tenant, "legal_name") ?? "InnerWorks",
+      productName: stringValue(branding, "product_name") ?? stringValue(tenant, "product_name") ?? stringValue(tenant, "legal_name") ?? "Inner Almox",
+      logoPath: stringValue(branding, "logo_path"),
+      primaryColor: stringValue(branding, "primary_color"),
+      secondaryColor: stringValue(branding, "secondary_color"),
+    }}>{children}</AppShell>;
 }

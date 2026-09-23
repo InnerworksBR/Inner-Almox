@@ -6,7 +6,7 @@ const errorHandlerPlugin: FastifyPluginAsync = async (app) => {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({
-        error: { code: error.code, message: error.message },
+        error: { code: error.code, message: error.message, ...(error.fields ? { fields: error.fields } : {}) },
         requestId: request.id
       });
     }

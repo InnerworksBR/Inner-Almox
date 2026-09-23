@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { loadEnv, type ApiEnv } from "./config/env";
+import { configurarValidacao } from "./config/validation";
 import { healthRoutes } from "./modules/health/routes";
 import { contextRoutes } from "./modules/context/routes";
 import { queueRoutes } from "./modules/queues/routes";
@@ -51,6 +52,7 @@ export interface BuildAppOptions {
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  configurarValidacao();
   const env = options.env ?? loadEnv();
   const app = Fastify({ logger: options.logger ?? env.NODE_ENV !== "test", trustProxy: env.TRUST_PROXY });
   const contextResolver = options.contextResolver ?? (

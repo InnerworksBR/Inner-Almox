@@ -16,7 +16,7 @@ Toda tabela de negócio possui `tenant_id`. Relacionamentos importantes usam `(t
 ## Regras no banco
 
 - Movimentações patrimoniais e de estoque são imutáveis.
-- Saídas não geram saldo negativo.
+- Saídas não geram saldo negativo, inclusive quando a linha de saldo ainda não existe: o gatilho materializa o saldo, valida e só então grava.
 - Transferências debitam e creditam na mesma transação.
 - Quilometragem nunca regride.
 - Retirada valida disponibilidade, CNH, categoria, autorização e documentos.

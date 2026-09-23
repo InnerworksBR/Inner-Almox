@@ -4,6 +4,7 @@ import { AppError } from "../../errors/app-error";
 import { requireTenantContext } from "../../middleware/require-tenant-context";
 import { requireTenantRole } from "../../middleware/require-role";
 import type { TenantResourceService } from "../../services/tenant-resource-service";
+import { opcoesDeConsulta } from "../business/routes";
 import type { ContextResolver } from "../../types/context";
 
 interface OrganizationRouteOptions { contextResolver: ContextResolver; resourceService: TenantResourceService }
@@ -35,7 +36,7 @@ const routeConfig: ReadonlyArray<{ path: string; table: OrganizationTable }> = [
 function parseBody(table: OrganizationTable, body: unknown, partial: boolean): Record<string, unknown> {
   const schema = partial ? schemas[table].partial() : schemas[table];
   const result = schema.safeParse(body);
-  if (!result.success) throw new AppError("Dados enviados são inválidos.", 422, "VALIDATION_ERROR");
+  if (!result.success) throw new AppError("Dados enviados são inválidos.", 422, "VALIDATION_ERROR", z.flattenError(result.error).fieldErrors);
   if (partial && Object.keys(result.data).length === 0) throw new AppError("Informe ao menos um campo para alteração.", 422, "EMPTY_UPDATE");
   return result.data;
 }
@@ -47,7 +48,9 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
     app.get(`/v1/${config.path}`, { preHandler: authenticate }, async (request) => {
       const context = request.tenantContext;
       if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
-      return { data: await resourceService.list(config.table, context.tenantId) };
+      const opcoes = opcoesDeConsulta(request.query, config.table);
+      const resultado = await resourceService.list(config.table, context.tenantId, opcoes);
+      return { data: resultado.linhas, total: resultado.total, pagina: opcoes.pagina ?? 1, tamanho: opcoes.tamanho ?? 25 };
     });
     app.post(`/v1/${config.path}`, { preHandler: [authenticate, authorize] }, async (request, reply) => {
       const context = request.tenantContext;

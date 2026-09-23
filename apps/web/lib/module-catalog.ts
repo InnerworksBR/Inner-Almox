@@ -81,3 +81,17 @@ export const apiEndpointByModule: Record<string, string> = {
   "superadmin/tenants":"platform/tenants", "superadmin/dominios":"platform/domains", "superadmin/planos":"platform/plans",
   "superadmin/modulos":"platform/modules", "superadmin/jobs":"platform/jobs", "superadmin/logs":"platform/logs"
 };
+
+/**
+ * Telas que compartilham endpoint precisam de recorte próprio: sem isso, Entradas,
+ * Saídas e Transferências mostram exatamente a mesma lista.
+ */
+export const filtrosFixosPorModulo: Record<string, Record<string, string>> = {
+  // Retiradas mostram o histórico completo de utilizações; Devoluções, apenas as encerradas.
+  "almoxarifado/entradas": { type: "purchase_in,return_in,positive_adjustment,transfer_in" },
+  "almoxarifado/saidas": { type: "consumption_out,requisition_out,loss_out,negative_adjustment" },
+  "almoxarifado/transferencias": { type: "transfer_in,transfer_out" },
+  "frota/devolucoes": { status: "completed" },
+  "patrimonio/inventarios": { type: "assets" },
+  "almoxarifado/inventarios": { type: "stock" }
+};

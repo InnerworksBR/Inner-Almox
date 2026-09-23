@@ -5,6 +5,8 @@
 **Status:** Em desenvolvimento
 **Versão:** 1.0
 
+> Vai rodar o projeto pela primeira vez? Comece em [12. Como rodar localmente](#12-como-rodar-localmente).
+
 ## 1. Visão
 
 O **Inner Almox** é uma plataforma corporativa SaaS, multi-tenant e white-label para gestão centralizada de patrimônio, almoxarifado, manutenção, frota, inventário e documentos.
@@ -211,3 +213,69 @@ Uma funcionalidade será considerada pronta quando:
 ## 11. Resultado Esperado
 
 O Inner Almox deverá permitir que a InnerWorks e futuros clientes controlem ativos, materiais e veículos durante todo o seu ciclo de vida, mantendo rastreabilidade, segurança, histórico e isolamento completo entre empresas.
+
+---
+
+## 12. Como rodar localmente
+
+Pré-requisitos: Node.js 22 ou superior, Corepack e Docker Desktop em execução.
+
+```powershell
+corepack enable
+pnpm install
+Copy-Item .env.example .env
+docker compose up -d redis
+pnpm db:start
+pnpm db:reset
+pnpm dev
+```
+
+Depois que o Supabase subir, copie `API URL`, `anon key` e `service_role key` para o `.env`. A
+service role é exclusivamente server-side e nunca vai para o frontend. Campos opcionais podem ficar
+vazios. Para liberar o painel global no ambiente local, preencha `PLATFORM_ADMIN_EMAILS`.
+
+| Serviço | Endereço |
+|---|---|
+| Web | <http://localhost:3000> |
+| API | <http://localhost:3333/health> |
+| Supabase Studio | <http://127.0.0.1:54323> |
+| E-mails locais | <http://127.0.0.1:54324> |
+
+O seed vincula `localhost` ao tenant InnerWorks. A interface encaminha o hostname white-label à API,
+que continua exigindo JWT válido e membership ativa no tenant resolvido.
+
+### Primeiro acesso
+
+Crie um usuário no Supabase Auth e provisione a membership no tenant. Os convites seguintes são
+feitos em **Administração → Usuários**. Credenciais nunca ficam no código nem no `.env` versionado.
+
+### Qualidade
+
+```powershell
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm db:test
+pnpm build
+```
+
+O roteiro de aceitação do PRD roda com `node --env-file=.env infra/scripts/acceptance.mjs`.
+
+No Windows, use os comandos acima se o executável nativo do Turbo devolver `EPERM`; os scripts
+`*:turbo` continuam disponíveis. O `pnpm dev` do frontend usa webpack em vez de Turbopack, e o
+motivo está registrado em [docs/DECISIONS.md](docs/DECISIONS.md).
+
+---
+
+## 13. Documentação
+
+| Documento | Conteúdo |
+|---|---|
+| [PRD](docs/PRD.md) | Fonte de verdade funcional e técnica |
+| [Arquitetura](docs/ARCHITECTURE.md) | Estrutura do monorepo e fluxo entre as aplicações |
+| [Banco de dados](docs/DATABASE.md) | Tabelas, funções e políticas de RLS |
+| [API](docs/API.md) | Rotas, parâmetros de consulta e formato dos erros |
+| [Segurança](docs/SECURITY.md) | Multi-tenancy, papéis e isolamento |
+| [Decisões](docs/DECISIONS.md) | Registros de decisão de arquitetura |
+| [Progresso](docs/TASKS.md) | O que está pronto e o que falta |
+| [Auditoria do MVP](docs/AUDITORIA-MVP.md) | Conferência dos critérios do PRD |

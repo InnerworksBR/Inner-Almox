@@ -12,7 +12,9 @@
 
 Tabelas tenant-scoped carregam `tenant_id`, índices correspondentes e RLS. Escritas de negócio não são concedidas diretamente a `authenticated`; passam pela API. A service role nunca usa prefixo `NEXT_PUBLIC_`, nunca vai ao navegador e não deve aparecer em logs/jobs.
 
-Visões pessoais filtram `responsible_user_id`, `issued_to` ou `requested_by`. Auditoria é limitada a `tenant_admin` e `auditor`. Administração global usa `platform_admins` ou a lista explícita de bootstrap `PLATFORM_ADMIN_EMAILS` e mantém trilha separada.
+Visões pessoais filtram `responsible_user_id`, `issued_to` ou `requested_by`. Auditoria é limitada a `tenant_admin` e `auditor`, verificado na própria rota.
+
+Como a API consulta o banco com service role, que contorna o RLS, o escopo por papel é reaplicado nas rotas de leitura: gestores enxergam o domínio inteiro e os demais recebem apenas os próprios registros, ou 403 quando não existe recorte pessoal aplicável. Campos que pertencem a um fluxo — status e responsável do ativo, quilometragem do veículo, status e quantidades entregues da requisição — são recusados no `PATCH` genérico e só mudam pela operação dedicada. Administração global usa `platform_admins` ou a lista explícita de bootstrap `PLATFORM_ADMIN_EMAILS` e mantém trilha separada.
 
 ## Arquivos e documentos
 

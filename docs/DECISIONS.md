@@ -39,3 +39,9 @@
 ## ADR-010 — Upload direto com autorização temporária
 
 **Status:** aceita. A API valida tenant, papel, entidade e caminho antes de emitir uma URL assinada. O navegador envia o binário diretamente ao Storage e registra os metadados pela API. Isso reduz carga no Fastify sem expor a service role.
+
+## ADR-011 — Tailwind e shadcn/ui na interface, com webpack no desenvolvimento
+
+**Status:** aceita. O redesenho adota Tailwind v4 e shadcn/ui, mantendo a paleta InnerWorks. As cores do tema apontam para as variáveis `--primary` e `--lime` que o `AppShell` injeta a partir do branding do tenant, de modo que o white-label continua trocando a interface inteira sem alterar código. O CSS das telas ainda não migradas vive na camada `@layer legacy`, abaixo dos utilitários: o visual atual é preservado e as telas novas sobrescrevem sem `!important`.
+
+O `next dev` roda com `--webpack` porque, nesta máquina Windows, o Turbopack falha ao criar o processo do transformador PostCSS (`exit code 0xc0000142`), derrubando toda requisição com 500. O `next build` com Turbopack funciona normalmente, então a troca vale apenas para o desenvolvimento, na mesma linha do ADR-007.

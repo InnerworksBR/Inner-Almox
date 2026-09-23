@@ -19,7 +19,7 @@ export function RecordActions({path,record}:{path:string;record:Row}){
     if(!session)return;
     const base=(process.env.NEXT_PUBLIC_API_URL??"http://localhost:3333").replace(/\/$/,"");
     const headers={authorization:`Bearer ${session.access_token}`,"x-tenant-hostname":window.location.hostname};
-    const [productResponse,locationResponse]=await Promise.all([fetch(`${base}/v1/stock/products`,{headers}),fetch(`${base}/v1/stock/locations`,{headers})]);
+    const [productResponse,locationResponse]=await Promise.all([fetch(`${base}/v1/stock/products?tamanho=100`,{headers}),fetch(`${base}/v1/stock/locations?tamanho=100`,{headers})]);
     const productBody:unknown=productResponse.ok?await productResponse.json():null;
     const locationBody:unknown=locationResponse.ok?await locationResponse.json():null;
     if(productBody&&typeof productBody==="object"&&"data"in productBody&&Array.isArray(productBody.data))setProducts(productBody.data as Row[]);
