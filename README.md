@@ -13,12 +13,13 @@
 
 <p align="center">
   <a href="#inicio-rapido">🚀 Rodar localmente</a> ·
+  <a href="#galeria">🎨 Ver a interface</a> ·
   <a href="#modulos">📦 Explorar módulos</a> ·
   <a href="#arquitetura">🧩 Arquitetura</a> ·
   <a href="#documentacao">📚 Documentação</a>
 </p>
 
-> **Em desenvolvimento e preparação para homologação.** Consulte o [progresso do MVP](docs/TASKS.md) e a [auditoria funcional](docs/AUDITORIA-MVP.md) para acompanhar entregas e pendências. O [PRD](docs/PRD.md) é a fonte de verdade dos requisitos.
+> **Em desenvolvimento e preparação para homologação.** Consulte o [progresso do MVP](docs/TASKS.md) e a [auditoria funcional](https://github.com/InnerworksBR/Inner-Almox/blob/feat/funcionalidades-incompletas/docs/AUDITORIA-MVP.md) para acompanhar entregas e pendências. O [PRD](docs/PRD.md) é a fonte de verdade dos requisitos.
 
 Este README usa links internos, diagramas Mermaid e seções expansíveis. Clique nos títulos com **▶** para abrir os detalhes; os diagramas são renderizados no GitHub.
 
@@ -27,11 +28,33 @@ Este README usa links internos, diagramas Mermaid e seções expansíveis. Cliqu
 | Conhecer o produto | Desenvolver e operar |
 | --- | --- |
 | [Visão geral](#visao-geral) | [Início rápido](#inicio-rapido) |
+| [Galeria da interface](#galeria) | [URLs locais](#inicio-rapido) |
 | [Módulos e fluxos](#modulos) | [Primeiro acesso](#primeiro-acesso) |
 | [Arquitetura e isolamento](#arquitetura) | [Variáveis de ambiente](#ambiente) |
 | [Stack e monorepo](#stack) | [Comandos e validação](#comandos) |
 | [Documentação do projeto](#documentacao) | [Problemas comuns](#problemas-comuns) |
 | [Como contribuir](#contribuir) | [Deploy e homologação](#deploy) |
+
+<a id="galeria"></a>
+
+## Galeria da interface
+
+Ilustrações conceituais **geradas com IA**, inspiradas nos módulos e na identidade visual do Inner Almox. Os dados, textos e elementos gráficos são demonstrativos. Os [prompts e a origem das imagens](docs/images/README.md) estão documentados no repositório.
+
+### Dashboard e visão geral
+
+![Ilustração gerada com IA do dashboard Inner Almox: indicadores de ativos, estoque e frota, gráficos e atividades recentes](docs/images/inner-almox-dashboard-ai.png)
+
+<details>
+<summary><strong>▶ Ver a ilustração da gestão patrimonial</strong></summary>
+
+![Ilustração gerada com IA da gestão patrimonial Inner Almox: listagem de ativos e painel de detalhes com localização, responsável e QR Code demonstrativo](docs/images/inner-almox-patrimonio-ai.png)
+
+**Gestão patrimonial:** organização de ativos, categorias, localizações, responsáveis e histórico.
+
+</details>
+
+[↑ Voltar ao início](#topo)
 
 <a id="visao-geral"></a>
 
@@ -111,7 +134,7 @@ Expanda um domínio para conhecer seus principais recursos. A disponibilidade na
 - Administração global de tenants, domínios, planos e módulos.
 - Dashboard geral, exportações CSV/XLSX e auditoria de operações.
 
-As telas de permissões, dashboards de módulo, saúde e acompanhamento de jobs possuem evolução registrada na [auditoria do MVP](docs/AUDITORIA-MVP.md) e no [progresso](docs/TASKS.md).
+As telas de permissões, dashboards de módulo, saúde e acompanhamento de jobs possuem evolução registrada na [auditoria do MVP](https://github.com/InnerworksBR/Inner-Almox/blob/feat/funcionalidades-incompletas/docs/AUDITORIA-MVP.md) e no [progresso](docs/TASKS.md).
 
 [Modelo de segurança](docs/SECURITY.md) · [Arquitetura](docs/ARCHITECTURE.md)
 
@@ -144,7 +167,7 @@ flowchart LR
 
 **Como uma empresa é isolada:** a API valida a sessão, resolve um domínio verificado de tenant ativo e exige uma membership ativa nesse tenant. O `tenant_id` do corpo da requisição não concede acesso.
 
-As tabelas de negócio usam `tenant_id`, RLS e relações protegidas contra vínculos entre empresas. Como a service role contorna o RLS, a API aplica explicitamente o escopo de tenant e de papel antes de consultar ou alterar dados. Essa chave permanece no servidor.
+As tabelas de negócio usam `tenant_id`, RLS e relações protegidas contra vínculos entre empresas. Como a service role contorna o RLS, o modelo de segurança exige validação explícita do escopo de tenant e de papel nas operações do servidor. Essa chave permanece no servidor; consulte os requisitos em [Segurança](docs/SECURITY.md) e as evidências na auditoria funcional.
 
 <details>
 <summary><strong>▶ Acompanhar uma requisição autenticada</strong></summary>
@@ -185,7 +208,7 @@ Versões declaradas nos manifests e na configuração do repositório:
 
 | Camada | Tecnologias |
 | --- | --- |
-| Interface | Next.js 16, React 19, TypeScript, Tailwind CSS 4 e componentes shadcn/ui |
+| Interface | Next.js 16, React 19 e TypeScript com App Router |
 | API | Node.js 22+, Fastify 5 e Zod |
 | Dados e identidade | Supabase PostgreSQL 17, Auth, Storage e RLS |
 | Processamento | Redis 8 e BullMQ |
@@ -370,7 +393,7 @@ As variáveis `NEXT_PUBLIC_*` são públicas e incorporadas à aplicação web. 
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | Configuração de envio por e-mail no worker |
 | `SMTP_USER`, `SMTP_PASSWORD` | Credenciais SMTP, quando o servidor exigir |
 
-O template também reserva `SENTRY_DSN`; sua presença não confirma integração ativa de observabilidade. A configuração SMTP e a entrega automática de alertas devem ser conferidas no [progresso](docs/TASKS.md) e na [auditoria](docs/AUDITORIA-MVP.md).
+O template também reserva `SENTRY_DSN`; sua presença não confirma integração ativa de observabilidade. A configuração SMTP e a entrega automática de alertas devem ser conferidas no [progresso](docs/TASKS.md) e na [auditoria](https://github.com/InnerworksBR/Inner-Almox/blob/feat/funcionalidades-incompletas/docs/AUDITORIA-MVP.md).
 
 </details>
 
@@ -423,7 +446,7 @@ Com o ambiente configurado e a API em execução, o roteiro de aceitação pode 
 node --env-file=.env infra/scripts/acceptance.mjs
 ```
 
-Esse roteiro cria dados e usuários de teste. Execute em ambiente de desenvolvimento destinado a validação. Consulte a [auditoria funcional](docs/AUDITORIA-MVP.md) para o escopo e os resultados registrados.
+Esse roteiro cria dados e usuários de teste. Execute em ambiente de desenvolvimento destinado a validação. Consulte a [auditoria funcional](https://github.com/InnerworksBR/Inner-Almox/blob/feat/funcionalidades-incompletas/docs/AUDITORIA-MVP.md) para o escopo e os resultados registrados.
 
 </details>
 
@@ -463,7 +486,15 @@ Confira `REDIS_URL` e a disponibilidade da porta `6379`. O worker precisa estar 
 <details>
 <summary><strong>▶ O Turbo retorna EPERM ou o frontend falha no Windows</strong></summary>
 
-Use os scripts padrão `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck` e `pnpm test`, que executam via pnpm. O desenvolvimento web já usa `next dev --webpack` por causa de uma falha local do transformador PostCSS com Turbopack. Os motivos estão nos [ADR-007 e ADR-011](docs/DECISIONS.md).
+Use os scripts padrão `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck` e `pnpm test`, que executam via pnpm, conforme o [ADR-007](docs/DECISIONS.md).
+
+Se o frontend falhar com Turbopack no Windows, interrompa o processo web e inicie essa aplicação com webpack:
+
+```bash
+pnpm --filter @inner-almox/web exec next dev --port 3000 --webpack
+```
+
+Mantenha API e worker em terminais separados com os comandos por aplicação da seção [Comandos](#comandos).
 
 </details>
 
@@ -500,7 +531,7 @@ Antes de disponibilizar o produto, acompanhe em [docs/TASKS.md](docs/TASKS.md) a
 | Autorização, isolamento e modelo de confiança | [Segurança](docs/SECURITY.md) |
 | Motivos das escolhas técnicas | [Decisões / ADRs](docs/DECISIONS.md) |
 | Entregas e próximos ajustes | [Progresso do MVP](docs/TASKS.md) |
-| Evidências e lacunas encontradas na validação | [Auditoria funcional](docs/AUDITORIA-MVP.md) |
+| Evidências e lacunas encontradas na validação | [Auditoria funcional](https://github.com/InnerworksBR/Inner-Almox/blob/feat/funcionalidades-incompletas/docs/AUDITORIA-MVP.md) |
 | Convenções para agentes e desenvolvimento | [AGENTS.md](AGENTS.md) |
 
 <a id="contribuir"></a>
