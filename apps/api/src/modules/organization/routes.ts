@@ -4,6 +4,7 @@ import { AppError } from "../../errors/app-error";
 import { requireTenantContext } from "../../middleware/require-tenant-context";
 import { requireTenantRole } from "../../middleware/require-role";
 import type { TenantResourceService } from "../../services/tenant-resource-service";
+import { opcoesDeConsulta } from "../business/routes";
 import type { ContextResolver } from "../../types/context";
 
 interface OrganizationRouteOptions { contextResolver: ContextResolver; resourceService: TenantResourceService }
@@ -12,7 +13,7 @@ type OrganizationTable = "branches" | "departments" | "cost_centers" | "location
 const identifier = z.uuid();
 const status = z.enum(["active", "inactive"]);
 const commonFields = {
-  code: z.string().trim().min(1).max(30),
+  code: z.string().trim().min(1).max(30).optional(),
   name: z.string().trim().min(2).max(160),
   status: status.optional()
 };
@@ -35,9 +36,13 @@ const routeConfig: ReadonlyArray<{ path: string; table: OrganizationTable }> = [
 function parseBody(table: OrganizationTable, body: unknown, partial: boolean): Record<string, unknown> {
   const schema = partial ? schemas[table].partial() : schemas[table];
   const result = schema.safeParse(body);
-  if (!result.success) throw new AppError("Dados enviados são inválidos.", 422, "VALIDATION_ERROR");
+  if (!result.success) throw new AppError("Dados enviados são inválidos.", 422, "VALIDATION_ERROR", z.flattenError(result.error).fieldErrors);
   if (partial && Object.keys(result.data).length === 0) throw new AppError("Informe ao menos um campo para alteração.", 422, "EMPTY_UPDATE");
   return result.data;
+}
+
+function guardInternalCode(payload: Record<string, unknown>): void {
+  if (payload.code !== undefined) throw new AppError("O código interno é gerado pelo sistema.", 422, "PROTECTED_FIELD");
 }
 
 export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = async (app, { contextResolver, resourceService }) => {
@@ -47,12 +52,16 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
     app.get(`/v1/${config.path}`, { preHandler: authenticate }, async (request) => {
       const context = request.tenantContext;
       if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
-      return { data: await resourceService.list(config.table, context.tenantId) };
+      const opcoes = opcoesDeConsulta(request.query, config.table);
+      const resultado = await resourceService.list(config.table, context.tenantId, opcoes);
+      return { data: resultado.linhas, total: resultado.total, pagina: opcoes.pagina ?? 1, tamanho: opcoes.tamanho ?? 25 };
     });
     app.post(`/v1/${config.path}`, { preHandler: [authenticate, authorize] }, async (request, reply) => {
       const context = request.tenantContext;
       if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
-      const data = await resourceService.create(config.table, context.tenantId, context.userId, parseBody(config.table, request.body, false));
+      const payload = parseBody(config.table, request.body, false);
+      guardInternalCode(payload);
+      const data = await resourceService.create(config.table, context.tenantId, context.userId, payload);
       return reply.status(201).send({ data });
     });
     app.patch(`/v1/${config.path}/:id`, { preHandler: [authenticate, authorize] }, async (request) => {
@@ -60,7 +69,9 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
       if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
       const parsedParams = z.object({ id: z.uuid() }).safeParse(request.params);
       if (!parsedParams.success) throw new AppError("Identificador inválido.", 422, "INVALID_IDENTIFIER");
-      return { data: await resourceService.update(config.table, context.tenantId, context.userId, parsedParams.data.id, parseBody(config.table, request.body, true)) };
+      const payload = parseBody(config.table, request.body, true);
+      guardInternalCode(payload);
+      return { data: await resourceService.update(config.table, context.tenantId, context.userId, parsedParams.data.id, payload) };
     });
   }
 };

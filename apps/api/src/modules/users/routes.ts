@@ -13,6 +13,12 @@ const inviteSchema = z.object({
   employee_number: z.string().trim().max(50).optional(), position: z.string().trim().max(120).optional(),
   branch_id: z.uuid().optional(), department_id: z.uuid().optional(), cost_center_id: z.uuid().optional(), admission_date: z.iso.date().optional()
 });
+const directUserSchema = inviteSchema.extend({ password: z.string().min(8).max(72) });
+const userListQuery = z.object({
+  busca: z.string().trim().max(120).optional(),
+  pagina: z.coerce.number().int().positive().default(1),
+  tamanho: z.coerce.number().int().positive().max(100).default(25)
+});
 
 export const userRoutes: FastifyPluginAsync<UserRouteOptions> = async (app, { contextResolver, userAdminService }) => {
   const authenticate = requireTenantContext(contextResolver);
@@ -20,7 +26,19 @@ export const userRoutes: FastifyPluginAsync<UserRouteOptions> = async (app, { co
   app.get("/v1/users", { preHandler: [authenticate, authorize] }, async (request) => {
     const context = request.tenantContext;
     if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
-    return { data: await userAdminService.list(context.tenantId) };
+    const parsed = userListQuery.safeParse(request.query);
+    if (!parsed.success) throw new AppError("Parâmetros de usuários inválidos.", 422, "VALIDATION_ERROR");
+    const result = await userAdminService.list(context.tenantId, parsed.data);
+    return { data: result.linhas, total: result.total, pagina: parsed.data.pagina, tamanho: parsed.data.tamanho };
+  });
+  app.post("/v1/users", { preHandler: [authenticate, authorize] }, async (request, reply) => {
+    const context = request.tenantContext;
+    if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
+    const parsed = directUserSchema.safeParse(request.body);
+    if (!parsed.success) throw new AppError("Dados do cadastro são inválidos.", 422, "VALIDATION_ERROR");
+    const { email, full_name: fullName, password, roles, ...employee } = parsed.data;
+    const data = await userAdminService.create(context.tenantId, context.userId, { email, fullName, password, roles, employee });
+    return reply.status(201).send({ data });
   });
   app.post("/v1/users/invitations", { preHandler: [authenticate, authorize] }, async (request, reply) => {
     const context = request.tenantContext;

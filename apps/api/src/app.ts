@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { loadEnv, type ApiEnv } from "./config/env";
+import { configurarValidacao } from "./config/validation";
 import { healthRoutes } from "./modules/health/routes";
 import { contextRoutes } from "./modules/context/routes";
 import { queueRoutes } from "./modules/queues/routes";
@@ -31,6 +32,7 @@ import { SupabaseAssetQrService,UnconfiguredAssetQrService,type AssetQrService }
 import { SupabaseStorageService,UnconfiguredStorageService,type StorageService } from "./services/storage-service";
 import { SupabaseTenantConfigurationService, UnconfiguredTenantConfigurationService, type TenantConfigurationService } from "./services/tenant-configuration-service";
 import { SupabasePlatformAdminService, UnconfiguredPlatformAdminService, type PlatformAdminService } from "./services/platform-admin-service";
+import { PlatformHealthService } from "./services/platform-health-service";
 import { SupabaseDocumentService, UnconfiguredDocumentService, type DocumentService } from "./services/document-service";
 
 export interface BuildAppOptions {
@@ -47,10 +49,12 @@ export interface BuildAppOptions {
   storageService?:StorageService;
   configurationService?:TenantConfigurationService;
   platformService?:PlatformAdminService;
+  platformHealthService?:PlatformHealthService;
   documentService?:DocumentService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  configurarValidacao();
   const env = options.env ?? loadEnv();
   const app = Fastify({ logger: options.logger ?? env.NODE_ENV !== "test", trustProxy: env.TRUST_PROXY });
   const contextResolver = options.contextResolver ?? (
@@ -76,6 +80,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const storageService=options.storageService??(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY?new SupabaseStorageService(env.SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY):new UnconfiguredStorageService());
   const configurationService=options.configurationService??(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY?new SupabaseTenantConfigurationService(env.SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY):new UnconfiguredTenantConfigurationService());
   const platformService=options.platformService??(env.SUPABASE_URL&&env.SUPABASE_ANON_KEY&&env.SUPABASE_SERVICE_ROLE_KEY?new SupabasePlatformAdminService(env.SUPABASE_URL,env.SUPABASE_ANON_KEY,env.SUPABASE_SERVICE_ROLE_KEY,env.PLATFORM_ADMIN_EMAILS.split(",")):new UnconfiguredPlatformAdminService());
+  const platformHealthService=options.platformHealthService??new PlatformHealthService({supabaseUrl:env.SUPABASE_URL,serviceRoleKey:env.SUPABASE_SERVICE_ROLE_KEY,queuePublisher});
   const documentService=options.documentService??(env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY?new SupabaseDocumentService(env.SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,env.DOCUMENT_PUBLIC_URL??env.WEB_ORIGINS.split(",")[0]??"http://localhost:3000",env.QR_CODE_BASE_URL??env.WEB_ORIGINS.split(",")[0]??"http://localhost:3000"):new UnconfiguredDocumentService());
 
   app.decorateRequest("tenantContext", null);
@@ -97,7 +102,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(assetQrRoutes,{contextResolver,assetQrService});
   await app.register(storageRoutes,{contextResolver,storageService});
   await app.register(tenantRoutes,{contextResolver,configurationService});
-  await app.register(platformRoutes,{platformService});
+  await app.register(platformRoutes,{platformService,healthService:platformHealthService});
   await app.register(documentRoutes,{contextResolver,documentService});
   app.addHook("onClose", async () => queuePublisher.close());
   return app;

@@ -11,6 +11,7 @@ const securityPlugin: FastifyPluginAsync<SecurityOptions> = async (app, { env })
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, {
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     origin(origin, callback) {
       if (!origin || allowedOrigins.has(origin)) return callback(null, true);
       return callback(new Error("Origem não permitida."), false);

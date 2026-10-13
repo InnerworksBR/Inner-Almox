@@ -34,9 +34,9 @@ insert into public.asset_categories (id, tenant_id, name) values
   ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Notebooks A'),
   ('50000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'Notebooks B');
 
-insert into public.assets (tenant_id, internal_code, category_id, description, branch_id) values
-  ('10000000-0000-0000-0000-000000000001', 'A-001', '50000000-0000-0000-0000-000000000001', 'Ativo A', '40000000-0000-0000-0000-000000000001'),
-  ('10000000-0000-0000-0000-000000000002', 'B-001', '50000000-0000-0000-0000-000000000002', 'Ativo B', '40000000-0000-0000-0000-000000000002');
+insert into public.assets (tenant_id, category_id, description, branch_id) values
+  ('10000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001', 'Ativo A', '40000000-0000-0000-0000-000000000001'),
+  ('10000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000002', 'Ativo B', '40000000-0000-0000-0000-000000000002');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"20000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
@@ -61,7 +61,7 @@ select is((select count(*)::integer from public.assets), 1, 'User B sees only it
 select throws_ok(
   $$insert into public.branches (tenant_id, code, name) values ('10000000-0000-0000-0000-000000000002', 'NO', 'Direct write')$$,
   '42501',
-  'permission denied for table branches',
+  'new row violates row-level security policy for table "branches"',
   'Authenticated users cannot bypass Fastify for writes'
 );
 

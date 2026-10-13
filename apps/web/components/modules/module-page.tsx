@@ -1,9 +1,16 @@
 import Link from "next/link";
-import { fetchTenantCollection } from "@/lib/api/server";
-import { apiEndpointByModule } from "@/lib/module-catalog";
-import { TenantSettingsForm } from "@/components/modules/tenant-settings-form";
+import { CirclePlus } from "lucide-react";
+
+import { DataTable } from "@/components/modules/data-table";
 import { RecordActions } from "@/components/modules/record-actions";
 import { ReportCenter } from "@/components/modules/report-center";
+import { ProfileForm } from "@/components/modules/profile-form";
+import { TenantSettingsForm } from "@/components/modules/tenant-settings-form";
+import { PermissionsMatrix } from "@/components/modules/permissions-matrix";
+import { fetchTenantCollection } from "@/lib/api/server";
+import { colunasDe, rotasSemBusca } from "@/lib/columns";
+import { apiEndpointByModule, filtrosFixosPorModulo } from "@/lib/module-catalog";
+import type { Consulta } from "@/lib/query";
 
 interface ModulePageProps {
   title: string;
@@ -12,27 +19,99 @@ interface ModulePageProps {
   path: string;
   primaryAction?: string;
   columns?: string[];
+  consulta?: Consulta;
 }
 
-export async function ModulePage({ title, description, singular, path, primaryAction, columns }: ModulePageProps) {
+/** Telas cujas linhas oferecem ações contextuais (QR, termo, leitura de inventário…). */
+const comAcoes = ["patrimonio/ativos", "patrimonio/movimentacoes", "meus-termos", "patrimonio/inventarios", "almoxarifado/inventarios", "almoxarifado/requisicoes", "notificacoes"];
+
+export async function ModulePage({ title, description, singular, path, primaryAction, columns, consulta = {} }: ModulePageProps) {
   const isSettings = !columns;
   const isReports = path.endsWith("/relatorios");
   const endpoint = apiEndpointByModule[path];
-  const collection = endpoint ? await fetchTenantCollection(endpoint) : { data: [], available: true };
+  const colunas = colunasDe(path);
+
+  const pagina = Number(consulta.pagina ?? "1") || 1;
+  const tamanho = Number(consulta.tamanho ?? "25") || 25;
+  const aceitaConsulta = !rotasSemBusca.has(path);
+  const colecao = endpoint && !isReports && !isSettings
+    ? await fetchTenantCollection(endpoint, aceitaConsulta ? {
+        ...filtrosFixosPorModulo[path],
+        busca: consulta.busca,
+        ordenar: consulta.ordenar,
+        direcao: consulta.direcao,
+        pagina: String(pagina),
+        tamanho: String(tamanho)
+      } : {})
+    : { data: [], total: 0, available: true };
+
   return (
-    <div className="page-stack">
-      <header className="page-header">
-        <div><span className="page-eyebrow">{path.split("/")[0]}</span><h1>{title}</h1><p>{description}</p></div>
-        {primaryAction && !isReports ? <Link className="button" href={`/${path}/novo`}>{primaryAction}</Link> : null}
+    <div className="grid gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <span className="text-[0.68rem] font-extrabold uppercase tracking-[0.14em] text-primary">{path.split("/")[0]}</span>
+          <h1 className="mb-1 mt-1.5 text-2xl font-bold tracking-tight lg:text-3xl">{title}</h1>
+          <p className="m-0 max-w-2xl text-sm text-muted-foreground">{description}</p>
+        </div>
+        {path === "admin/usuarios" ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/usuarios/novo?modo=direto" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-primary-dark">
+              <CirclePlus className="size-4" aria-hidden="true" /> Cadastrar usuário
+            </Link>
+            <Link href="/admin/usuarios/novo" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground no-underline transition-colors hover:bg-muted">
+              Convidar usuário
+            </Link>
+          </div>
+        ) : primaryAction && !isReports && !isSettings ? (
+          <Link href={`/${path}/novo`} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-primary-dark">
+            <CirclePlus className="size-4" aria-hidden="true" /> {primaryAction}
+          </Link>
+        ) : null}
       </header>
-      {endpoint && !collection.available ? <div className="connection-banner"><span>!</span><div><strong>API temporariamente indisponível</strong><small>Inicie a API com <code>pnpm dev</code>. A interface continuará disponível.</small></div></div> : null}
-      {isReports ? <ReportCenter path={path} /> : path==="admin/configuracoes"?<TenantSettingsForm/>:isSettings ? <SettingsPlaceholder title={title} /> : <CollectionPlaceholder path={path} singular={singular} columns={columns} records={collection.data} />}
+
+      {endpoint && !colecao.available && !isReports && !isSettings ? (
+        <div className="flex items-center gap-3 rounded-xl border border-tint-amber-ink/30 bg-tint-amber px-4 py-3 text-tint-amber-ink">
+          <span className="grid size-7 shrink-0 place-items-center rounded-full border border-current font-bold">!</span>
+          <div>
+            <strong className="block text-sm">API temporariamente indisponível</strong>
+            <small className="block text-xs">Inicie a API com <code>pnpm dev</code>. A interface continua disponível.</small>
+          </div>
+        </div>
+      ) : null}
+
+      {isReports ? (
+        <ReportCenter path={path} />
+      ) : path === "perfil" ? (
+        <ProfileForm />
+      ) : path === "admin/configuracoes" ? (
+        <TenantSettingsForm />
+      ) : path === "admin/permissoes" ? (
+        <PermissionsMatrix />
+      ) : isSettings ? (
+        <SettingsPlaceholder title={title} />
+      ) : colunas ? (
+        <DataTable
+          rota={path}
+          singular={singular}
+          colunas={colunas}
+          linhas={colecao.data}
+          consulta={consulta}
+          total={colecao.total}
+          pagina={pagina}
+          tamanho={tamanho}
+          comAcoes={comAcoes.includes(path)}
+          permiteBusca={!rotasSemBusca.has(path)}
+        />
+      ) : (
+        <CollectionPlaceholder path={path} singular={singular} columns={columns} records={colecao.data} />
+      )}
     </div>
   );
 }
 
-function CollectionPlaceholder({ path, singular, columns = [], records }: { path:string; singular: string; columns?: string[]; records: Array<Record<string, unknown>> }) {
-  const hasActions=["patrimonio/ativos","patrimonio/movimentacoes","meus-termos","patrimonio/inventarios","almoxarifado/inventarios","almoxarifado/requisicoes","notificacoes"].includes(path);
+// Caminho legado, ainda usado pelas telas que não foram migradas para o catálogo de colunas.
+function CollectionPlaceholder({ path, singular, columns = [], records }: { path: string; singular: string; columns?: string[]; records: Array<Record<string, unknown>> }) {
+  const hasActions = comAcoes.includes(path);
   return (
     <section className="panel data-panel">
       <div className="data-toolbar">

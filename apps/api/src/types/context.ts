@@ -23,5 +23,6 @@ export interface ValidationJobInput {
 
 export interface QueuePublisher {
   publishValidation(input: ValidationJobInput): Promise<string>;
+  ping?(): Promise<void>;
   close(): Promise<void>;
 }

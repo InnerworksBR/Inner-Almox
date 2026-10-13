@@ -9,7 +9,7 @@ Navegador -> Next.js -> Fastify -> Supabase/PostgreSQL
 
 ## Aplicações
 
-- `apps/web`: Next.js App Router, interface responsiva, autenticação Supabase SSR, navegação por perfil e identidade visual do tenant.
+- `apps/web`: Next.js App Router, interface responsiva, autenticação Supabase SSR, navegação por perfil e identidade visual do tenant. A camada visual usa Tailwind 4 e shadcn/ui, com os tokens de tema apontando para as variáveis de branding que o `AppShell` injeta, de modo que a troca de cores do tenant vale para a interface inteira. O CSS das telas ainda não migradas vive na camada `@layer legacy`, abaixo dos utilitários.
 - `apps/api`: Fastify modular, validação Zod, autorização, resolução do tenant, operações críticas, arquivos, relatórios e administração da plataforma.
 - `apps/worker`: BullMQ para alertas e notificações internas ou por e-mail, com retries e execução periódica.
 
