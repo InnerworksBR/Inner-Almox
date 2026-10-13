@@ -395,11 +395,17 @@
   .table-empty small { font-size: .7rem; }
   .data-footer { color: var(--muted); display: flex; font-size: .68rem; justify-content: space-between; padding: .8rem 1rem; }
   .record-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .35rem; min-width: 180px; }
-  .record-actions button, .action-upload { background: var(--primary-soft); border: 0; border-radius: 6px; color: var(--primary); cursor: pointer; font-size: .66rem; font-weight: 800; padding: .42rem .55rem; white-space: nowrap; }
+  .record-actions button, .record-action-link, .action-upload { background: var(--primary-soft); border: 0; border-radius: 6px; color: var(--primary); cursor: pointer; font-size: .66rem; font-weight: 800; padding: .42rem .55rem; white-space: nowrap; }
   .record-actions button:disabled { opacity: .55; }
   .record-actions small { color: #9b2c2c; font-weight: 800; }
   .action-upload { display: inline-block; }
   .action-upload input { height: 1px; opacity: 0; overflow: hidden; padding: 0; position: absolute; width: 1px; }
+  .action-upload:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .asset-upload-status { display: grid; flex: 1 1 100%; gap: .4rem; max-width: 18rem; min-width: 0; padding: .4rem 0; }
+  .asset-upload-status p, .record-action-error { color: var(--muted); font-size: .7rem; margin: 0; overflow-wrap: anywhere; }
+  .asset-upload-status__preview { border: 1px solid var(--border); border-radius: 6px; max-height: 10rem; max-width: 100%; object-fit: contain; }
+  .asset-upload-status progress { accent-color: var(--primary); width: 100%; }
+  .record-action-error { color: #9b2c2c; flex: 1 1 100%; font-weight: 700; }
   .report-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .report-card { display: flex; flex-direction: column; gap: 1.25rem; justify-content: space-between; min-height: 210px; }
   .report-card h2 { margin: .35rem 0; }

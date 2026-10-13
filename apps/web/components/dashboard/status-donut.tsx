@@ -9,14 +9,14 @@ export interface StatusFatia {
 }
 
 /** Distribuição dos ativos por situação. Recebe os dados já agregados pela API. */
-export function StatusDonut({ fatias, total }: { fatias: StatusFatia[]; total: number }) {
+export function StatusDonut({ fatias, total, unidade = "ativos", emptyMessage = "Cadastre ativos para ver aqui a distribuição por situação." }: { fatias: StatusFatia[]; total: number; unidade?: string; emptyMessage?: string }) {
   const comValor = fatias.filter((fatia) => fatia.valor > 0);
 
   if (total === 0 || comValor.length === 0) {
     return (
       <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-border text-center">
         <p className="m-0 max-w-xs text-sm text-muted-foreground">
-          Cadastre ativos para ver aqui a distribuição por situação.
+          {emptyMessage}
         </p>
       </div>
     );
@@ -38,7 +38,7 @@ export function StatusDonut({ fatias, total }: { fatias: StatusFatia[]; total: n
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
           <span className="text-2xl font-bold leading-none">{total}</span>
-          <small className="text-[0.68rem] text-muted-foreground">ativos</small>
+          <small className="text-[0.68rem] text-muted-foreground">{unidade}</small>
         </div>
       </div>
       <ul className="m-0 grid flex-1 list-none gap-2 p-0">

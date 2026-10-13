@@ -22,6 +22,7 @@ const copyByPath: Record<string, ModuleCopy> = {
   "patrimonio/manutencoes": { description: "Gerencie ordens preventivas, corretivas, custos e tempo parado.", singular: "ordem de manutenção", primaryAction: "Abrir ordem", columns: ["OS", "Ativo", "Tipo", "Prioridade", "Previsão", "Status"] },
   "patrimonio/relatorios": { description: "Analise patrimônio, responsabilidades, movimentações e custos.", singular: "relatório", primaryAction: "Gerar relatório", columns: ["Relatório", "Última geração", "Formato", "Status"] },
   "almoxarifado/produtos": { description: "Cadastre produtos, unidades, limites e regras de lote.", singular: "produto", primaryAction: "Novo produto", columns: ["SKU", "Produto", "Saldo", "Mínimo", "Local", "Status"] },
+  "almoxarifado/estoques": { description: "Cadastre os estoques físicos usados nas entradas, saídas e transferências.", singular: "estoque", primaryAction: "Novo estoque", columns: ["Código", "Estoque", "Localização", "Status"] },
   "almoxarifado/entradas": { description: "Registre compras, devoluções e ajustes positivos.", singular: "entrada", primaryAction: "Registrar entrada", columns: ["Data", "Documento", "Produto", "Quantidade", "Fornecedor"] },
   "almoxarifado/saidas": { description: "Registre consumo, perdas, requisições e ajustes negativos.", singular: "saída", primaryAction: "Registrar saída", columns: ["Data", "Tipo", "Produto", "Quantidade", "Destino"] },
   "almoxarifado/transferencias": { description: "Transfira materiais entre estoques e localizações.", singular: "transferência", primaryAction: "Nova transferência", columns: ["Número", "Origem", "Destino", "Itens", "Status"] },
@@ -31,6 +32,7 @@ const copyByPath: Record<string, ModuleCopy> = {
   "almoxarifado/relatorios": { description: "Analise saldos, consumo, validade e movimentações.", singular: "relatório", primaryAction: "Gerar relatório", columns: ["Relatório", "Última geração", "Formato", "Status"] },
   "frota/veiculos": { description: "Controle cadastro, disponibilidade, documentos e histórico da frota.", singular: "veículo", primaryAction: "Novo veículo", columns: ["Placa", "Veículo", "Filial", "Quilometragem", "Status"] },
   "frota/motoristas": { description: "Gerencie motoristas, CNH, restrições e autorizações.", singular: "motorista", primaryAction: "Novo motorista", columns: ["Motorista", "CNH", "Categoria", "Validade", "Status"] },
+  "frota/autorizacoes": { description: "Defina quais motoristas podem utilizar veículos da frota.", singular: "autorização", primaryAction: "Nova autorização", columns: ["Motorista", "Veículo", "Tipo", "Válida até", "Status"] },
   "frota/reservas": { description: "Planeje a utilização e evite conflitos de agenda.", singular: "reserva", primaryAction: "Nova reserva", columns: ["Período", "Veículo", "Condutor", "Finalidade", "Status"] },
   "frota/retiradas": { description: "Registre condutor, destino, checklist e quilometragem inicial.", singular: "retirada", primaryAction: "Retirar veículo", columns: ["Data", "Veículo", "Condutor", "Km inicial", "Status"] },
   "frota/devolucoes": { description: "Finalize utilizações com checklist, avarias e quilometragem final.", singular: "devolução", primaryAction: "Devolver veículo", columns: ["Data", "Veículo", "Condutor", "Distância", "Ocorrências"] },
@@ -39,13 +41,13 @@ const copyByPath: Record<string, ModuleCopy> = {
   "frota/multas": { description: "Acompanhe infrações, pontos, vencimentos e recursos.", singular: "multa", primaryAction: "Registrar multa", columns: ["Data", "Veículo", "Condutor", "Valor", "Status"] },
   "frota/ocorrencias": { description: "Registre acidentes, avarias, panes e usos indevidos.", singular: "ocorrência", primaryAction: "Nova ocorrência", columns: ["Data", "Tipo", "Veículo", "Condutor", "Status"] },
   "frota/relatorios": { description: "Analise utilização, consumo, custos, multas e documentos.", singular: "relatório", primaryAction: "Gerar relatório", columns: ["Relatório", "Última geração", "Formato", "Status"] },
-  "admin/usuarios": { description: "Convide pessoas, defina vínculos, perfis e situação de acesso.", singular: "usuário", primaryAction: "Convidar usuário", columns: ["Usuário", "Filial", "Setor", "Perfil", "Status"] },
+  "admin/usuarios": { description: "Cadastre usuários diretamente ou envie convites, definindo vínculos, perfis e situação de acesso.", singular: "usuário", primaryAction: "Cadastrar usuário", columns: ["Usuário", "Filial", "Setor", "Perfil", "Status"] },
   "admin/filiais": { description: "Organize unidades e estabelecimentos da empresa.", singular: "filial", primaryAction: "Nova filial", columns: ["Filial", "Código", "Cidade", "Responsável", "Status"] },
   "admin/setores": { description: "Estruture equipes, gestores e relações departamentais.", singular: "setor", primaryAction: "Novo setor", columns: ["Setor", "Filial", "Gestor", "Colaboradores", "Status"] },
   "admin/centros-de-custo": { description: "Distribua despesas e recursos por centro de custo.", singular: "centro de custo", primaryAction: "Novo centro", columns: ["Código", "Centro de custo", "Responsável", "Status"] },
   "admin/localizacoes": { description: "Modele prédios, andares, salas, depósitos, garagens e estoques.", singular: "localização", primaryAction: "Nova localização", columns: ["Localização", "Tipo", "Filial", "Local superior", "Status"] },
   "admin/fornecedores": { description: "Centralize contatos e fornecedores de bens e serviços.", singular: "fornecedor", primaryAction: "Novo fornecedor", columns: ["Fornecedor", "Documento", "Contato", "Categorias", "Status"] },
-  "admin/permissoes": { description: "Controle ações permitidas para cada perfil dentro do tenant.", singular: "perfil de acesso", primaryAction: "Novo perfil", columns: ["Perfil", "Usuários", "Escopo", "Última alteração"] },
+  "admin/permissoes": { description: "Consulte os papéis, ações e usuários vinculados dentro do tenant.", singular: "perfil de acesso", columns: ["Perfil", "Usuários", "Escopo", "Última alteração"] },
   "admin/configuracoes": { description: "Personalize marca, módulos, alertas e regras da empresa.", singular: "configuração", primaryAction: "Salvar alterações" },
   "admin/auditoria": { description: "Consulte a trilha imutável de operações sensíveis.", singular: "evento", columns: ["Data", "Usuário", "Ação", "Entidade", "Identificador"] },
   "superadmin/tenants": { description: "Provisione e administre os clientes da plataforma.", singular: "tenant", primaryAction: "Novo tenant", columns: ["Tenant", "Domínio", "Plano", "Uso", "Status"] },
@@ -75,11 +77,11 @@ export function getModuleDefinition(path: string) {
 export const apiEndpointByModule: Record<string, string> = {
   "admin/usuarios":"users", "admin/filiais":"branches", "admin/setores":"departments", "admin/centros-de-custo":"cost-centers", "admin/localizacoes":"locations", "admin/fornecedores":"suppliers", "admin/auditoria":"audit", "solicitar-material":"my/requisitions", "minhas-requisicoes":"my/requisitions", "meus-ativos":"my/assets", "meus-termos":"my/terms",
   "patrimonio/ativos":"assets", "patrimonio/categorias":"asset-categories", "patrimonio/movimentacoes":"asset-movements", "patrimonio/garantias":"warranties", "patrimonio/manutencoes":"maintenance/orders",
-  "almoxarifado/produtos":"stock/products", "almoxarifado/lotes":"stock/batches", "almoxarifado/requisicoes":"stock/requisitions", "almoxarifado/entradas":"stock/movements", "almoxarifado/saidas":"stock/movements", "almoxarifado/transferencias":"stock/movements",
-  "frota/veiculos":"fleet/vehicles", "frota/motoristas":"fleet/drivers", "frota/reservas":"fleet/reservations", "frota/retiradas":"fleet/usages", "frota/devolucoes":"fleet/usages", "frota/abastecimentos":"fleet/fuelings", "frota/despesas":"fleet/expenses", "frota/multas":"fleet/fines", "frota/ocorrencias":"fleet/incidents", "notificacoes":"notifications",
+  "almoxarifado/produtos":"stock/products", "almoxarifado/estoques":"stock/locations", "almoxarifado/lotes":"stock/batches", "almoxarifado/requisicoes":"stock/requisitions", "almoxarifado/entradas":"stock/movements", "almoxarifado/saidas":"stock/movements", "almoxarifado/transferencias":"stock/movements",
+  "frota/veiculos":"fleet/vehicles", "frota/motoristas":"fleet/drivers", "frota/autorizacoes":"fleet/authorizations", "frota/reservas":"fleet/reservations", "frota/retiradas":"fleet/usages", "frota/devolucoes":"fleet/usages", "frota/abastecimentos":"fleet/fuelings", "frota/despesas":"fleet/expenses", "frota/multas":"fleet/fines", "frota/ocorrencias":"fleet/incidents", "notificacoes":"notifications",
   "patrimonio/inventarios":"inventories", "almoxarifado/inventarios":"inventories",
   "superadmin/tenants":"platform/tenants", "superadmin/dominios":"platform/domains", "superadmin/planos":"platform/plans",
-  "superadmin/modulos":"platform/modules", "superadmin/jobs":"platform/jobs", "superadmin/logs":"platform/logs"
+  "superadmin/modulos":"platform/modules", "superadmin/saude":"platform/health", "superadmin/jobs":"platform/jobs", "superadmin/logs":"platform/logs"
 };
 
 /**

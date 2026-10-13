@@ -4,7 +4,9 @@ import { CirclePlus } from "lucide-react";
 import { DataTable } from "@/components/modules/data-table";
 import { RecordActions } from "@/components/modules/record-actions";
 import { ReportCenter } from "@/components/modules/report-center";
+import { ProfileForm } from "@/components/modules/profile-form";
 import { TenantSettingsForm } from "@/components/modules/tenant-settings-form";
+import { PermissionsMatrix } from "@/components/modules/permissions-matrix";
 import { fetchTenantCollection } from "@/lib/api/server";
 import { colunasDe, rotasSemBusca } from "@/lib/columns";
 import { apiEndpointByModule, filtrosFixosPorModulo } from "@/lib/module-catalog";
@@ -51,7 +53,16 @@ export async function ModulePage({ title, description, singular, path, primaryAc
           <h1 className="mb-1 mt-1.5 text-2xl font-bold tracking-tight lg:text-3xl">{title}</h1>
           <p className="m-0 max-w-2xl text-sm text-muted-foreground">{description}</p>
         </div>
-        {primaryAction && !isReports ? (
+        {path === "admin/usuarios" ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/usuarios/novo?modo=direto" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-primary-dark">
+              <CirclePlus className="size-4" aria-hidden="true" /> Cadastrar usuário
+            </Link>
+            <Link href="/admin/usuarios/novo" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground no-underline transition-colors hover:bg-muted">
+              Convidar usuário
+            </Link>
+          </div>
+        ) : primaryAction && !isReports && !isSettings ? (
           <Link href={`/${path}/novo`} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-primary-dark">
             <CirclePlus className="size-4" aria-hidden="true" /> {primaryAction}
           </Link>
@@ -70,8 +81,12 @@ export async function ModulePage({ title, description, singular, path, primaryAc
 
       {isReports ? (
         <ReportCenter path={path} />
+      ) : path === "perfil" ? (
+        <ProfileForm />
       ) : path === "admin/configuracoes" ? (
         <TenantSettingsForm />
+      ) : path === "admin/permissoes" ? (
+        <PermissionsMatrix />
       ) : isSettings ? (
         <SettingsPlaceholder title={title} />
       ) : colunas ? (

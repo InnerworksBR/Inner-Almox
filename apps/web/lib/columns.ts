@@ -107,6 +107,12 @@ const colunasPorRota: Record<string, Coluna[]> = {
     { titulo: "Unidade", campo: "unit", secundaria: true },
     { titulo: "Status", campo: "status", tipo: "status", ordenavel: "status" }
   ],
+  "almoxarifado/estoques": [
+    { titulo: "Código", campo: "code", tipo: "destaque", ordenavel: "code" },
+    { titulo: "Estoque", campo: "name", ordenavel: "name" },
+    { titulo: "Localização", campo: "locations.name", secundaria: true },
+    { titulo: "Status", campo: "status", tipo: "status", ordenavel: "status" }
+  ],
   "almoxarifado/entradas": [
     { titulo: "Data", campo: "occurred_at", tipo: "datahora", ordenavel: "occurred_at" },
     { titulo: "Tipo", campo: "type", tipo: "codigo", ordenavel: "type" },
@@ -168,6 +174,13 @@ const colunasPorRota: Record<string, Coluna[]> = {
     { titulo: "Categoria", campo: "category", ordenavel: "category" },
     { titulo: "Validade", campo: "expires_at", tipo: "data", ordenavel: "expires_at" },
     { titulo: "Status", campo: "status", tipo: "status", ordenavel: "status" }
+  ],
+  "frota/autorizacoes": [
+    { titulo: "Motorista", campo: "vehicle_drivers.license_number", tipo: "destaque" },
+    { titulo: "Veículo", campo: "vehicles.plate" },
+    { titulo: "Tipo", campo: "vehicle_type", secundaria: true },
+    { titulo: "Válida até", campo: "valid_until", tipo: "data", ordenavel: "valid_until" },
+    { titulo: "Status", campo: "active", tipo: "booleano", ordenavel: "active" }
   ],
   "frota/reservas": [
     { titulo: "Início", campo: "starts_at", tipo: "datahora", ordenavel: "starts_at" },
@@ -312,7 +325,8 @@ const colunasPorRota: Record<string, Coluna[]> = {
   "superadmin/saude": [
     { titulo: "Serviço", campo: "servico", tipo: "destaque" },
     { titulo: "Estado", campo: "estado" },
-    { titulo: "Última verificação", campo: "verificado_em" }
+    { titulo: "Latência", campo: "latencia_ms", tipo: "numero" },
+    { titulo: "Última verificação", campo: "verificado_em", tipo: "datahora" }
   ],
   "superadmin/jobs": [
     { titulo: "Fila", campo: "queue", tipo: "destaque" },
@@ -338,9 +352,7 @@ colunasPorRota["minhas-requisicoes"] = colunasPorRota["solicitar-material"] ?? [
  * omitida, em vez de exibir um campo que não filtraria nada.
  */
 export const rotasSemBusca = new Set([
-  "admin/usuarios", "admin/permissoes",
-  "superadmin/tenants", "superadmin/dominios", "superadmin/planos",
-  "superadmin/modulos", "superadmin/saude", "superadmin/jobs", "superadmin/logs"
+  "admin/permissoes",
 ]);
 
 export function colunasDe(rota: string): Coluna[] | null {

@@ -18,6 +18,8 @@ interface RelationSelectProps {
   valueKey?: string;
   placeholder?: string;
   required?: boolean;
+  initialValue?: string;
+  initialLabel?: string;
 }
 
 const TAMANHO_INICIAL = 100;
@@ -36,13 +38,15 @@ function textoDe(linha: Linha, chaves: readonly string[]): string {
  * maior que isso, passa a consultar o servidor conforme o usuário digita; quando a
  * lista já veio inteira, filtra localmente.
  */
-export function RelationSelect({ name, source, labelKeys, valueKey = "id", placeholder, required }: RelationSelectProps) {
+export function RelationSelect({ name, source, labelKeys, valueKey = "id", placeholder, required, initialValue, initialLabel }: RelationSelectProps) {
   const [opcoes, setOpcoes] = useState<Linha[]>([]);
   const [total, setTotal] = useState(0);
   const [termo, setTermo] = useState("");
   const [aberto, setAberto] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const [escolhido, setEscolhido] = useState<{ id: string; rotulo: string } | null>(null);
+  const [escolhido, setEscolhido] = useState<{ id: string; rotulo: string } | null>(
+    initialValue ? { id: initialValue, rotulo: initialLabel || "Registro selecionado" } : null
+  );
   const caixa = useRef<HTMLDivElement>(null);
 
   const listaCompleta = opcoes.length >= total;

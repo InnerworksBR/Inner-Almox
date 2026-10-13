@@ -1,6 +1,6 @@
 // Roteiro de aceite do MVP: percorre os criterios do PRD secao 35 contra a API real.
 // Uso: node --env-file=.env infra/scripts/acceptance.mjs [caminho-do-json-de-saida]
-// Idempotente: cada execucao usa um identificador proprio, entao pode rodar quantas vezes precisar.
+// Cada execucao usa um identificador proprio. Os dados de teste ficam no banco local; nao ha limpeza automatica.
 
 import { writeFileSync } from "node:fs";
 
@@ -111,7 +111,20 @@ const colaborador = colaboradorId ? await logar(colaboradorEmail) : null;
 // ------------------------------------------------------------ Tenant e white-label
 section("PRD 35 - Tenant e white-label");
 await step("Tenant expoe configuracao e branding", "GET", "/v1/tenant/configuration", { token: admin }, (d) => Boolean(d?.id));
+const brandingBefore = await call("GET", "/v1/tenant/configuration", { token: admin });
 await step("Identidade visual pode ser alterada", "PATCH", "/v1/tenant/configuration", { token: admin, body: { primary_color: "#176B4D", secondary_color: "#B8D925" } });
+if (brandingBefore.status >= 200 && brandingBefore.status < 300 && brandingBefore.data) {
+  const restoredBranding = await call("PATCH", "/v1/tenant/configuration", {
+    token: admin,
+    body: {
+      primary_color: brandingBefore.data.primary_color ?? null,
+      secondary_color: brandingBefore.data.secondary_color ?? null
+    }
+  });
+  if (restoredBranding.status < 200 || restoredBranding.status >= 300) {
+    throw new Error("Falha ao restaurar a identidade visual após o critério de aceite.");
+  }
+}
 const novoTenant = await step("Superadministrador cria tenant", "POST", "/v1/platform/tenants", {
   token: admin,
   body: {
@@ -121,7 +134,11 @@ const novoTenant = await step("Superadministrador cria tenant", "POST", "/v1/pla
 });
 await step("Tenant provisionado possui dominio", "GET", "/v1/platform/domains", { token: admin }, (d) => Array.isArray(d) && d.some((linha) => String(linha.hostname).includes(RUN.toLowerCase())));
 await step("Planos comerciais disponiveis", "GET", "/v1/platform/plans", { token: admin }, (d) => Array.isArray(d) && d.length > 0);
-await step("Saude da plataforma responde", "GET", "/v1/platform/health", { token: admin }, (d) => d?.api === "healthy");
+await step("Saude da plataforma responde", "GET", "/v1/platform/health", { token: admin }, (d) =>
+  Array.isArray(d) && ["Banco", "Redis", "Storage", "Worker"].every((service) =>
+    d.some((line) => line?.servico === service && ["healthy", "degraded", "failed"].includes(line.estado))
+  )
+);
 await step("Jobs da plataforma sao consultaveis", "GET", "/v1/platform/jobs", { token: admin }, (d) => Array.isArray(d));
 await step("Logs da plataforma sao consultaveis", "GET", "/v1/platform/logs", { token: admin }, (d) => Array.isArray(d));
 
@@ -136,11 +153,11 @@ record("Colaborador criado com vinculo e papel", Boolean(colaborador && colabora
 
 // ------------------------------------------------------------ Estrutura organizacional
 section("PRD 35 - Estrutura organizacional");
-const filial = await step("Cadastro de filial", "POST", "/v1/branches", { token: admin, body: { code: `FIL-${RUN}`, name: `Filial ${RUN}` } });
-const local = await step("Cadastro de localizacao", "POST", "/v1/locations", { token: admin, body: { code: `LOC-${RUN}`, name: `Almoxarifado ${RUN}`, type: "warehouse", branch_id: filial?.id } });
-const localDestino = await step("Cadastro de segunda localizacao", "POST", "/v1/locations", { token: admin, body: { code: `LOC2-${RUN}`, name: `Deposito ${RUN}`, type: "stock", branch_id: filial?.id } });
-const centro = await step("Cadastro de centro de custo", "POST", "/v1/cost-centers", { token: admin, body: { code: `CC-${RUN}`, name: `Centro ${RUN}` } });
-const setor = await step("Cadastro de setor", "POST", "/v1/departments", { token: admin, body: { code: `SET-${RUN}`, name: `Setor ${RUN}`, branch_id: filial?.id, cost_center_id: centro?.id } });
+const filial = await step("Cadastro de filial", "POST", "/v1/branches", { token: admin, body: { name: `Filial ${RUN}` } });
+const local = await step("Cadastro de localizacao", "POST", "/v1/locations", { token: admin, body: { name: `Almoxarifado ${RUN}`, type: "warehouse", branch_id: filial?.id } });
+const localDestino = await step("Cadastro de segunda localizacao", "POST", "/v1/locations", { token: admin, body: { name: `Deposito ${RUN}`, type: "stock", branch_id: filial?.id } });
+const centro = await step("Cadastro de centro de custo", "POST", "/v1/cost-centers", { token: admin, body: { name: `Centro ${RUN}` } });
+const setor = await step("Cadastro de setor", "POST", "/v1/departments", { token: admin, body: { name: `Setor ${RUN}`, branch_id: filial?.id, cost_center_id: centro?.id } });
 const fornecedor = await step("Cadastro de fornecedor", "POST", "/v1/suppliers", { token: admin, body: { legal_name: `Fornecedor ${RUN} Ltda`, trade_name: `Fornecedor ${RUN}` } });
 
 // ------------------------------------------------------------ Patrimonio
@@ -149,18 +166,18 @@ const categoria = await step("Cadastro de categoria de ativo", "POST", "/v1/asse
 const ativo = await step("Gestor cadastra ativo", "POST", "/v1/assets", {
   token: admin,
   body: {
-    internal_code: `AT-${RUN}`, asset_number: `PAT-${RUN}`, description: `Notebook Dell ${RUN}`, category_id: categoria?.id,
+    asset_number: `PAT-${RUN}`, description: `Notebook Dell ${RUN}`, category_id: categoria?.id,
     branch_id: filial?.id, location_id: local?.id, department_id: setor?.id, cost_center_id: centro?.id,
     supplier_id: fornecedor?.id, purchase_value: 5400, purchase_date: HOJE
   }
 });
-record("Sistema gera QR Code do ativo", Boolean(ativo?.qr_token), ativo?.qr_token ? `token ${String(ativo.qr_token).slice(0, 8)}` : "sem token");
+record("Sistema gera código interno e QR Code do ativo", /^ATV-\d{6}$/.test(String(ativo?.internal_code)) && Boolean(ativo?.qr_token), ativo?.internal_code ? `${ativo.internal_code}, token ${String(ativo.qr_token).slice(0, 8)}` : "sem código");
 if (ativo) {
   const qr = await call("GET", `/v1/assets/${ativo.id}/qr?format=png`, { token: admin, raw: true });
   record("Etiqueta QR sai como imagem", qr.status === 200 && qr.bytes > 100, `HTTP ${qr.status}, ${qr.bytes} bytes`);
   const etiqueta = await call("POST", "/v1/assets/qr-labels", { token: admin, body: { asset_ids: [ativo.id] }, raw: true });
   record("Etiquetas em lote saem em PDF", etiqueta.status === 200 && etiqueta.bytes > 500, `HTTP ${etiqueta.status}, ${etiqueta.bytes} bytes`);
-  await step("Leitura do QR devolve o ativo", "GET", `/v1/assets/qr/${ativo.qr_token}`, { token: admin }, (d) => d?.internal_code === `AT-${RUN}`);
+  await step("Leitura do QR devolve o ativo", "GET", `/v1/assets/qr/${ativo.qr_token}`, { token: admin }, (d) => d?.internal_code === ativo.internal_code);
 }
 const movimentacao = ativo
   ? await step("Movimentacao de entrega gera historico", "POST", "/v1/asset-movements", {
@@ -208,9 +225,9 @@ await step("Alerta de garantia aparece nas notificacoes", "GET", "/v1/notificati
 
 // ------------------------------------------------------------ Almoxarifado
 section("PRD 35 - Almoxarifado");
-const estoqueOrigem = local ? await step("Cadastro de estoque de origem", "POST", "/v1/stock/locations", { token: admin, body: { location_id: local.id, name: `Estoque Central ${RUN}`, code: `EST-${RUN}` } }) : null;
-const estoqueDestino = localDestino ? await step("Cadastro de estoque de destino", "POST", "/v1/stock/locations", { token: admin, body: { location_id: localDestino.id, name: `Estoque Apoio ${RUN}`, code: `EST2-${RUN}` } }) : null;
-const produto = await step("Produto pode ser cadastrado", "POST", "/v1/stock/products", { token: admin, body: { code: `PR-${RUN}`, sku: `SKU-${RUN}`, name: `Cabo de rede ${RUN}`, unit: "UN", minimum_stock: 10, maximum_stock: 500 } });
+const estoqueOrigem = local ? await step("Cadastro de estoque de origem", "POST", "/v1/stock/locations", { token: admin, body: { location_id: local.id, name: `Estoque Central ${RUN}` } }) : null;
+const estoqueDestino = localDestino ? await step("Cadastro de estoque de destino", "POST", "/v1/stock/locations", { token: admin, body: { location_id: localDestino.id, name: `Estoque Apoio ${RUN}` } }) : null;
+const produto = await step("Produto pode ser cadastrado", "POST", "/v1/stock/products", { token: admin, body: { sku: `SKU-${RUN}`, name: `Cabo de rede ${RUN}`, unit: "UN", minimum_stock: 10, maximum_stock: 500 } });
 if (produto && estoqueOrigem) {
   await step("Entrada aumenta o saldo", "POST", "/v1/stock/movements", { token: admin, body: { target_product_id: produto.id, target_stock_location_id: estoqueOrigem.id, movement_type: "purchase_in", movement_quantity: 100, movement_unit_cost: 12.5, movement_document: `NF-${RUN}` } });
   await step("Saida reduz o saldo", "POST", "/v1/stock/movements", { token: admin, body: { target_product_id: produto.id, target_stock_location_id: estoqueOrigem.id, movement_type: "consumption_out", movement_quantity: 15, target_department_id: setor?.id, target_cost_center_id: centro?.id } });
@@ -321,13 +338,13 @@ if (colaborador) {
   await deny("Colaborador nao lista os itens de requisicao do tenant", "GET", "/v1/stock/requisition-items", { token: colaborador }, [403]);
   await deny("Colaborador nao lista os usuarios do tenant", "GET", "/v1/users", { token: colaborador }, [403]);
   if (requisicao) await deny("Colaborador nao aprova requisicao por edicao direta", "PATCH", `/v1/stock/requisitions/${requisicao}`, { token: colaborador, body: { status: "approved" } }, [403]);
-  await deny("Colaborador nao cadastra ativo", "POST", "/v1/assets", { token: colaborador, body: { internal_code: `X-${RUN}`, description: "Tentativa indevida" } }, [403]);
+  await deny("Colaborador nao cadastra ativo", "POST", "/v1/assets", { token: colaborador, body: { description: "Tentativa indevida" } }, [403]);
 }
 
 // ------------------------------------------------------------ Regras criticas
 section("PRD 41 - Regras criticas de negocio");
 if (produto && estoqueDestino && estoqueOrigem) {
-  const vazioOrigem = await step("Cadastro de estoque sem saldo para teste", "POST", "/v1/stock/locations", { token: admin, body: { location_id: localDestino.id, name: `Estoque Vazio ${RUN}`, code: `EST3-${RUN}` } });
+  const vazioOrigem = await step("Cadastro de estoque sem saldo para teste", "POST", "/v1/stock/locations", { token: admin, body: { location_id: localDestino.id, name: `Estoque Vazio ${RUN}` } });
   if (vazioOrigem) {
     await deny("Transferencia a partir de estoque vazio e bloqueada", "POST", "/v1/stock/transfers", {
       token: admin,
@@ -338,9 +355,9 @@ if (produto && estoqueDestino && estoqueOrigem) {
 if (requisicao) {
   await deny("Requisicao ja entregue nao volta para rascunho", "POST", `/v1/stock/requisitions/${requisicao}/status`, { token: admin, body: { target_status: "requested" } }, [422, 400, 409]);
 }
-await deny("Tenant enviado pelo cliente nao substitui o contexto", "POST", "/v1/branches", { token: admin, body: { code: `ISO-${RUN}`, name: `Isolamento ${RUN}`, tenant_id: "11111111-1111-1111-1111-111111111111" } }, [201]).then(async () => {
+await deny("Tenant enviado pelo cliente nao substitui o contexto", "POST", "/v1/branches", { token: admin, body: { name: `Isolamento ${RUN}`, tenant_id: "11111111-1111-1111-1111-111111111111" } }, [201]).then(async () => {
   const lista = await call("GET", "/v1/branches", { token: admin });
-  const criada = lista.data?.find((linha) => linha.code === `ISO-${RUN}`);
+  const criada = lista.data?.find((linha) => linha.name === `Isolamento ${RUN}`);
   record("Filial criada permanece no tenant do contexto", criada?.tenant_id === TENANT, `tenant gravado: ${criada?.tenant_id}`);
 });
 

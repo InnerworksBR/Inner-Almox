@@ -22,11 +22,15 @@ encontra aqueles sob sua responsabilidade.
 - `GET /v1/context`
 - `POST /v1/foundation/jobs`
 - `GET /v1/dashboard`
+- `GET /v1/dashboard/:module` — `patrimonio`, `almoxarifado` ou `frota`; retorna `module`, métricas, distribuição por status e série mensal.
+- `GET /v1/platform/health` — exige administrador global e retorna uma linha independente para `Banco`, `Redis`, `Storage` e `Worker`, com `estado`, `latencia_ms` e `verificado_em`.
 
 ## Organização e usuários
 
 - CRUD (`GET`, `POST`, `PATCH /:id`): `/v1/branches`, `/departments`, `/cost-centers`, `/locations`, `/suppliers`
-- `GET /v1/users`
+- Os códigos internos de filiais, setores, centros de custo, localizações, estoques e produtos são gerados automaticamente; `code` não deve ser enviado no cadastro nem na edição.
+- `GET /v1/users?busca=ana&pagina=2&tamanho=25` — busca nome, e-mail e matrícula; retorna `{ data, total, pagina, tamanho }`.
+- `POST /v1/users` — cria diretamente um usuário ativo e confirmado com senha inicial definida pelo administrador.
 - `POST /v1/users/invitations`
 - `PATCH /v1/users/:id/status`
 - `GET|PATCH /v1/tenant/configuration`
@@ -77,12 +81,16 @@ Entradas, saídas, transferências e atendimento são transacionais. Saldo negat
 
 ## Administração InnerWorks
 
-Estas rotas usam autorização global, independente dos papéis do tenant:
+Estas rotas usam autorização global, independente dos papéis do tenant. As listagens aceitam `busca`,
+`ordenar`, `direcao`, `pagina` e `tamanho` e retornam `{ data, total, pagina, tamanho }`:
 
 - `GET|POST /v1/platform/tenants`; `PATCH /v1/platform/tenants/:id`
 - `GET|POST /v1/platform/domains`; `POST /v1/platform/domains/:id/verify`
 - `GET|POST /v1/platform/plans`
 - `GET /v1/platform/modules`; `PUT /v1/platform/tenants/:id/modules`
 - `GET /v1/platform/health`, `/jobs`, `/logs`
+
+Jobs sem `tenant_id` representam processamento da plataforma. Jobs derivados da varredura de alertas
+mantêm uma linha própria por tenant.
 
 IDs de tenant enviados por clientes nunca substituem o tenant derivado nas rotas de negócio. A service role é usada apenas internamente após autenticação e autorização.

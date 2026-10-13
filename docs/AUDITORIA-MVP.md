@@ -3,9 +3,14 @@
 Execução em 23/09/2026, no ambiente local, contra a API e o banco reais. O objetivo foi responder,
 seção por seção, se o sistema entrega o que o [PRD](PRD.md) promete.
 
-> **Situação em 23/09/2026:** as cinco falhas confirmadas (F1 a F5) foram corrigidas no mesmo dia e
-> o roteiro de aceite passou a aprovar **95 de 95 critérios**. As lacunas de interface (A1 a A5)
-> continuam abertas. O histórico abaixo foi mantido como registro do que foi encontrado.
+> **Situação histórica em 25/09/2026:** as cinco falhas confirmadas (F1 a F5) foram corrigidas no mesmo dia e
+> o roteiro de aceite passou a aprovar **95 de 95 critérios**. A1 a A5 foram posteriormente implementadas;
+> A3 a A5 têm cobertura automatizada, enquanto a validação por usuários, o SMTP real e a operação de
+> produção continuam pendentes. O histórico abaixo registra o que foi encontrado e o estado atualizado.
+
+> **Validação local em 13/10/2026:** `pnpm test` (82 testes), `pnpm lint`, `pnpm typecheck`,
+> `pnpm build`, `pnpm db:test` (77 verificações pgTAP) e o roteiro integrado da API (95/95 critérios)
+> passaram. Isso não inclui homologação visual autenticada, envio SMTP real nem validação de produção.
 
 ## Resumo
 
@@ -16,8 +21,8 @@ seção por seção, se o sistema entrega o que o [PRD](PRD.md) promete.
 | Falhas confirmadas | 5, **todas corrigidas** |
 | Telas do menu verificadas | 50 |
 | Telas que abrem sem erro | **50 (100%)** |
-| Telas sem backend próprio | 3 |
-| Listagens que compartilham endpoint sem filtro | 4 |
+| Telas sem backend próprio | 0 |
+| Listagens que compartilham endpoint sem filtro | 0 |
 
 O núcleo de negócio está sólido: cadastro, movimentação, termos, estoque, frota, inventário,
 relatórios e isolamento entre tenants funcionam de ponta a ponta. As falhas se concentram em
@@ -28,7 +33,8 @@ pouca informação útil nas tabelas.
 
 1. **Roteiro de aceite automatizado** — [`infra/scripts/acceptance.mjs`](../infra/scripts/acceptance.mjs)
    percorre os critérios do PRD §35 na ordem natural de uso, com JWT real e dois papéis
-   (`tenant_admin` e um `employee` criado na hora). Reexecutável a qualquer momento:
+   (`tenant_admin` e um `employee` criado na hora). Cada execução mantém registros de teste únicos
+   no banco local; confirme o alvo antes de usá-lo em qualquer ambiente compartilhado:
 
    ```bash
    node --env-file=.env infra/scripts/acceptance.mjs
@@ -146,36 +152,35 @@ Entradas, Saídas e Transferências exibem as mesmas 7 linhas, porque todas apon
 `stock/movements` sem filtrar por tipo. O mesmo acontece com Retiradas e Devoluções (`fleet/usages`)
 e com os dois Inventários (`inventories`).
 
-### A3 — Três telas sem backend
+### A3 — Três telas sem backend · RESOLVIDO POR IMPLEMENTAÇÃO AUTOMATIZADA
 
-- **Permissões** e **Saúde**: não têm endpoint no catálogo e renderizam tabela vazia.
-- **Jobs**: tem endpoint, mas a tabela `background_jobs` nunca recebe escrita em nenhum ponto da API
-  ou do worker, então a tela fica permanentemente vazia.
+Permissões agora são uma matriz somente leitura com os oito papéis do PRD, Saúde consulta quatro
+probes independentes e Jobs são persistidos pelo worker, inclusive com registros derivados por tenant.
+Os cenários manuais de parada de dependência continuam fora desta etapa.
 
-### A4 — Dashboards ainda são maquete · PARCIALMENTE RESOLVIDO
+### A4 — Dashboards ainda são maquete · RESOLVIDO POR IMPLEMENTAÇÃO AUTOMATIZADA
 
-O dashboard geral foi refeito em 23/09/2026 e passou a consumir os indicadores reais, com gráfico de
-distribuição, painel de pendências, movimentações recentes e atalhos. Os dashboards de Patrimônio, Almoxarifado e Frota exibem apenas travessões
-([module-dashboard.tsx](../apps/web/components/modules/module-dashboard.tsx)).
+O dashboard geral e os dashboards de Patrimônio, Almoxarifado e Frota agora consomem métricas,
+distribuições e séries mensais reais ([module-dashboard.tsx](../apps/web/components/modules/module-dashboard.tsx)).
 
-### A5 — O canal de e-mail não tem quem o acione
+### A5 — O canal de e-mail não tem quem o acione · RESOLVIDO POR IMPLEMENTAÇÃO AUTOMATIZADA
 
-O worker sabe processar notificações por e-mail, mas nenhuma parte da API publica na fila
-`inner-almox-notifications`. Os alertas só existem como notificação interna.
+O worker consulta pendências por papel, publica um job `email-alert` por destinatário na fila
+`inner-almox-notifications` e grava a entrega sem duplicar o mesmo alerta no mesmo dia. SMTP real e
+entregabilidade seguem pendentes de homologação operacional.
 
 ## Correções sugeridas, por prioridade
 
 | # | Correção | Onde | Impacto |
 |---|---|---|---|
 | ~~1 a 5~~ | ~~Defeitos de autorização, de fluxo e de saldo~~ | concluídos em 23/09/2026 | — |
-| ~~6 e 7~~ | ~~Colunas por campo real e filtros das listagens compartilhadas~~ | concluídos em 23/09/2026 | — |
-| 6 | Mapear colunas por campo real e resolver nomes de chaves estrangeiras | `module-page.tsx`, `module-catalog.ts` | Usabilidade |
-| 7 | Filtrar as listagens que hoje compartilham endpoint | `module-catalog.ts` e rotas da API | Usabilidade |
-| 8 | Registrar jobs em `background_jobs` e publicar notificações na fila | API e worker | Completude |
-| 9 | Ligar os dashboards de módulo a dados reais | `module-dashboard.tsx`, dashboard geral | Valor percebido |
+| ~~6 e 7~~ | ~~Colunas por campo real e filtros das listagens compartilhadas~~ | implementados e cobertos por testes | — |
+| ~~8~~ | ~~Registrar jobs e publicar notificações na fila~~ | implementado e coberto por testes | — |
+| ~~9~~ | ~~Ligar os dashboards de módulo a dados reais~~ | implementado e coberto por testes | — |
 
-Os itens 1 a 5 eram defeitos, já corrigidos. Os itens 6 a 9 são funcionalidades que nunca foram
-concluídas e seguem pendentes.
+Os itens 1 a 9 estão implementados. SMTP real, entregabilidade, cenários manuais e homologação por
+usuários permanecem pendentes; os resultados históricos de aceite não substituem uma nova execução
+integrada no ambiente atual.
 
 ## Observação operacional
 

@@ -23,6 +23,10 @@ export class RedisQueuePublisher implements QueuePublisher {
     return String(job.id);
   }
 
+  async ping(): Promise<void> {
+    await this.connection.ping();
+  }
+
   async close(): Promise<void> {
     await this.queue.close();
     await this.connection.quit();

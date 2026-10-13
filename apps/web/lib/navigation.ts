@@ -33,6 +33,7 @@ export const navigationGroups: NavigationGroup[] = [
   { label: "Almoxarifado", items: [
     { href: "/almoxarifado", label: "Dashboard", marker: "AD" },
     { href: "/almoxarifado/produtos", label: "Produtos", marker: "PR" },
+    { href: "/almoxarifado/estoques", label: "Estoques", marker: "ES" },
     { href: "/almoxarifado/entradas", label: "Entradas", marker: "EN" },
     { href: "/almoxarifado/saidas", label: "Saídas", marker: "SA" },
     { href: "/almoxarifado/transferencias", label: "Transferências", marker: "TR" },
@@ -45,6 +46,7 @@ export const navigationGroups: NavigationGroup[] = [
     { href: "/frota", label: "Dashboard", marker: "FD" },
     { href: "/frota/veiculos", label: "Veículos", marker: "VE" },
     { href: "/frota/motoristas", label: "Motoristas", marker: "MO" },
+    { href: "/frota/autorizacoes", label: "Autorizações", marker: "AU" },
     { href: "/frota/reservas", label: "Reservas", marker: "RS" },
     { href: "/frota/retiradas", label: "Retiradas", marker: "RT" },
     { href: "/frota/devolucoes", label: "Devoluções", marker: "DV" },

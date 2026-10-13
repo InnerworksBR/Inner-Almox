@@ -13,7 +13,7 @@ type OrganizationTable = "branches" | "departments" | "cost_centers" | "location
 const identifier = z.uuid();
 const status = z.enum(["active", "inactive"]);
 const commonFields = {
-  code: z.string().trim().min(1).max(30),
+  code: z.string().trim().min(1).max(30).optional(),
   name: z.string().trim().min(2).max(160),
   status: status.optional()
 };
@@ -41,6 +41,10 @@ function parseBody(table: OrganizationTable, body: unknown, partial: boolean): R
   return result.data;
 }
 
+function guardInternalCode(payload: Record<string, unknown>): void {
+  if (payload.code !== undefined) throw new AppError("O código interno é gerado pelo sistema.", 422, "PROTECTED_FIELD");
+}
+
 export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = async (app, { contextResolver, resourceService }) => {
   const authenticate = requireTenantContext(contextResolver);
   const authorize = requireTenantRole(["tenant_admin"]);
@@ -55,7 +59,9 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
     app.post(`/v1/${config.path}`, { preHandler: [authenticate, authorize] }, async (request, reply) => {
       const context = request.tenantContext;
       if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
-      const data = await resourceService.create(config.table, context.tenantId, context.userId, parseBody(config.table, request.body, false));
+      const payload = parseBody(config.table, request.body, false);
+      guardInternalCode(payload);
+      const data = await resourceService.create(config.table, context.tenantId, context.userId, payload);
       return reply.status(201).send({ data });
     });
     app.patch(`/v1/${config.path}/:id`, { preHandler: [authenticate, authorize] }, async (request) => {
@@ -63,7 +69,9 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
       if (!context) throw new AppError("Contexto ausente.", 401, "TENANT_CONTEXT_REQUIRED");
       const parsedParams = z.object({ id: z.uuid() }).safeParse(request.params);
       if (!parsedParams.success) throw new AppError("Identificador inválido.", 422, "INVALID_IDENTIFIER");
-      return { data: await resourceService.update(config.table, context.tenantId, context.userId, parsedParams.data.id, parseBody(config.table, request.body, true)) };
+      const payload = parseBody(config.table, request.body, true);
+      guardInternalCode(payload);
+      return { data: await resourceService.update(config.table, context.tenantId, context.userId, parsedParams.data.id, payload) };
     });
   }
 };

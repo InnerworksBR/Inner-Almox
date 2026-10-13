@@ -14,7 +14,7 @@ interface FieldDefinition {
   name: string;
   label: string;
   placeholder?: string;
-  type?: "text" | "email" | "tel" | "number" | "date" | "datetime-local" | "textarea";
+  type?: "text" | "email" | "tel" | "number" | "date" | "datetime-local" | "textarea" | "select";
   required?: boolean;
   /** Endpoint que alimenta o seletor de vínculo. */
   source?: string;
@@ -22,6 +22,7 @@ interface FieldDefinition {
   labelKeys?: readonly string[];
   /** Campos longos ocupam a linha inteira. */
   largura?: "cheia";
+  options?: readonly { value: string; label: string }[];
 }
 
 // Fontes reaproveitadas pelos vínculos mais comuns.
@@ -38,9 +39,17 @@ const veiculo = { source: "fleet/vehicles", labelKeys: ["plate", "model"] } as c
 const motorista = { source: "fleet/drivers", labelKeys: ["tenant_memberships.profiles.full_name", "license_number"] } as const;
 
 const commonOrganization: FieldDefinition[] = [
-  { name: "code", label: "Código", placeholder: "Código interno", required: true },
   { name: "name", label: "Nome", placeholder: "Nome de exibição", required: true }
 ];
+
+const automaticCodePaths = new Set([
+  "admin/filiais",
+  "admin/setores",
+  "admin/centros-de-custo",
+  "admin/localizacoes",
+  "almoxarifado/produtos",
+  "almoxarifado/estoques"
+]);
 
 const fieldsByPath: Record<string, FieldDefinition[]> = {
   "superadmin/tenants": [
@@ -89,7 +98,21 @@ const fieldsByPath: Record<string, FieldDefinition[]> = {
     ...commonOrganization,
     { name: "branch_id", label: "Filial", placeholder: "Selecione a filial", ...filial },
     { name: "parent_id", label: "Local superior", placeholder: "Selecione se houver", ...localizacao },
-    { name: "type", label: "Tipo", placeholder: "room, warehouse, garage…" }
+    {
+      name: "type",
+      label: "Tipo",
+      required: true,
+      type: "select",
+      options: [
+        { value: "building", label: "Prédio" },
+        { value: "floor", label: "Andar" },
+        { value: "room", label: "Sala" },
+        { value: "warehouse", label: "Almoxarifado" },
+        { value: "stock", label: "Estoque" },
+        { value: "garage", label: "Garagem" },
+        { value: "other", label: "Outro" }
+      ]
+    }
   ],
   "admin/fornecedores": [
     { name: "legal_name", label: "Razão social", placeholder: "Empresa fornecedora", required: true },
@@ -115,7 +138,6 @@ const fieldsByPath: Record<string, FieldDefinition[]> = {
     { name: "description", label: "Descrição", placeholder: "Descrição da categoria", largura: "cheia" }
   ],
   "patrimonio/ativos": [
-    { name: "internal_code", label: "Código interno", placeholder: "AT-0001", required: true },
     { name: "asset_number", label: "Número patrimonial", placeholder: "PAT-2026-001" },
     { name: "description", label: "Descrição", placeholder: "Notebook Dell Latitude", required: true, largura: "cheia" },
     { name: "category_id", label: "Categoria", placeholder: "Selecione a categoria", source: "asset-categories", labelKeys: ["name"] },
@@ -167,7 +189,6 @@ const fieldsByPath: Record<string, FieldDefinition[]> = {
     { name: "ends_at", label: "Fim", type: "date", required: true }
   ],
   "almoxarifado/produtos": [
-    { name: "code", label: "Código", placeholder: "PR-0001", required: true },
     { name: "sku", label: "SKU", placeholder: "SKU-001" },
     { name: "name", label: "Nome", placeholder: "Nome do produto", required: true, largura: "cheia" },
     { name: "category_id", label: "Categoria", placeholder: "Selecione a categoria", source: "stock/categories", labelKeys: ["name"] },
@@ -177,6 +198,10 @@ const fieldsByPath: Record<string, FieldDefinition[]> = {
     { name: "maximum_stock", label: "Estoque máximo", type: "number", placeholder: "0" },
     { name: "barcode", label: "Código de barras", placeholder: "EAN / GTIN" },
     { name: "brand", label: "Marca", placeholder: "Fabricante" }
+  ],
+  "almoxarifado/estoques": [
+    { name: "location_id", label: "Localização", placeholder: "Selecione a localização", required: true, ...localizacao },
+    { name: "name", label: "Nome do estoque", placeholder: "Almoxarifado central", required: true },
   ],
   "almoxarifado/entradas": [
     { name: "target_product_id", label: "Produto", placeholder: "Selecione o produto", required: true, ...produto },
@@ -247,6 +272,13 @@ const fieldsByPath: Record<string, FieldDefinition[]> = {
     { name: "license_number", label: "CNH", placeholder: "Número da CNH", required: true },
     { name: "category", label: "Categoria", placeholder: "B", required: true },
     { name: "expires_at", label: "Validade", type: "date", required: true }
+  ],
+  "frota/autorizacoes": [
+    { name: "driver_id", label: "Motorista", placeholder: "Selecione o motorista", required: true, source: "fleet/drivers", labelKeys: ["license_number", "tenant_memberships.profiles.full_name"] },
+    { name: "vehicle_id", label: "Veículo", placeholder: "Selecione o veículo", source: "fleet/vehicles", labelKeys: ["plate", "model"] },
+    { name: "vehicle_type", label: "Tipo de veículo", placeholder: "Qualquer veículo compatível" },
+    { name: "valid_from", label: "Início", type: "date" },
+    { name: "valid_until", label: "Vencimento", type: "date" }
   ],
   "frota/reservas": [
     { name: "vehicle_id", label: "Veículo", placeholder: "Selecione o veículo", required: true, ...veiculo },
@@ -327,12 +359,55 @@ function mensagemDe(corpo: unknown, padrao: string): string {
   return typeof erro === "object" && erro !== null && "message" in erro && typeof erro.message === "string" ? erro.message : padrao;
 }
 
-export function RecordForm({ title, description, singular, path }: { title: string; description: string; singular: string; path: string }) {
+type Registro = Record<string, unknown>;
+
+function textoDoRegistro(record: Registro | undefined, campo: string): string {
+  const valor = record?.[campo];
+  return typeof valor === "string" || typeof valor === "number" ? String(valor) : "";
+}
+
+function valorInicial(record: Registro | undefined, campo: string): string | number | undefined {
+  const valor = record?.[campo];
+  return typeof valor === "string" || typeof valor === "number" ? valor : undefined;
+}
+
+export function normalizarValorDoCampo(tipo: FieldDefinition["type"], valor: string): string | number {
+  if (tipo !== "datetime-local") return valor;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? valor : data.toISOString();
+}
+
+const relacoesPorCampo: Record<string, { registro: string; campos: string[] }> = {
+  category_id: { registro: "asset_categories", campos: ["name"] },
+  branch_id: { registro: "branches", campos: ["name", "code"] },
+  location_id: { registro: "locations", campos: ["name", "code"] },
+  department_id: { registro: "departments", campos: ["name", "code"] },
+  cost_center_id: { registro: "cost_centers", campos: ["name", "code"] },
+  responsible_user_id: { registro: "profiles", campos: ["full_name", "email"] },
+  supplier_id: { registro: "suppliers", campos: ["trade_name", "legal_name"] }
+};
+
+function rotuloDaRelacao(record: Registro | undefined, campo: string): string {
+  const relacao = relacoesPorCampo[campo];
+  if (!relacao) return "";
+  const valor = relacao ? record?.[relacao.registro] : undefined;
+  if (typeof valor !== "object" || valor === null || Array.isArray(valor)) return "";
+  const objeto = valor as Record<string, unknown>;
+  for (const chave of relacao.campos) {
+    const texto = objeto[chave];
+    if (typeof texto === "string" && texto.trim()) return texto;
+  }
+  return "";
+}
+
+export function RecordForm({ title, description, singular, path, mode = "create", record }: { title: string; description: string; singular: string; path: string; mode?: "create" | "edit"; record?: Registro }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [erros, setErros] = useState<Record<string, string[]>>({});
   const fields = fieldsByPath[path] ?? campoGenerico;
+  const editando = mode === "edit" && typeof record?.id === "string";
+  const recordId = typeof record?.id === "string" ? record.id : "";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -352,7 +427,7 @@ export function RecordForm({ title, description, singular, path }: { title: stri
     for (const field of fields) {
       const raw = form.get(field.name);
       if (typeof raw !== "string" || raw.trim() === "") continue;
-      payload[field.name] = field.type === "number" ? Number(raw) : raw;
+      payload[field.name] = field.type === "number" ? Number(raw) : normalizarValorDoCampo(field.type, raw);
     }
 
     if (path === "admin/usuarios") { payload.roles = [payload.role]; delete payload.role; }
@@ -361,7 +436,7 @@ export function RecordForm({ title, description, singular, path }: { title: stri
     if (path === "almoxarifado/entradas") payload.movement_type = "purchase_in";
     if (path === "almoxarifado/saidas") payload.movement_type = "consumption_out";
 
-    let submitEndpoint = path === "admin/usuarios" ? "users/invitations" : endpoint;
+    let submitEndpoint = editando ? `${endpoint}/${recordId}` : path === "admin/usuarios" ? "users/invitations" : endpoint;
     if (path === "almoxarifado/transferencias") submitEndpoint = "stock/transfers";
     if (path === "frota/retiradas") submitEndpoint = "fleet/usages/checkout";
     if (path === "frota/devolucoes") {
@@ -388,7 +463,7 @@ export function RecordForm({ title, description, singular, path }: { title: stri
     try {
       const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333").replace(/\/$/, "");
       const response = await fetch(`${base}/v1/${submitEndpoint}`, {
-        method: "POST",
+        method: editando ? "PATCH" : "POST",
         headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json", "x-tenant-hostname": window.location.hostname },
         body: JSON.stringify(payload)
       });
@@ -409,7 +484,7 @@ export function RecordForm({ title, description, singular, path }: { title: stri
   return (
     <div className="grid gap-5">
       <header>
-        <span className="text-[0.68rem] font-extrabold uppercase tracking-[0.14em] text-primary">Novo cadastro</span>
+        <span className="text-[0.68rem] font-extrabold uppercase tracking-[0.14em] text-primary">{editando ? "Editar cadastro" : "Novo cadastro"}</span>
         <h1 className="mb-1 mt-1.5 text-2xl font-bold tracking-tight lg:text-3xl">{title}</h1>
         <p className="m-0 max-w-2xl text-sm text-muted-foreground">{description}</p>
       </header>
@@ -425,8 +500,21 @@ export function RecordForm({ title, description, singular, path }: { title: stri
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
+            {path === "patrimonio/ativos" || automaticCodePaths.has(path) ? (
+              <label className="grid gap-1.5 text-sm font-semibold">
+                <span>Código interno</span>
+                <input
+                  value={editando ? textoDoRegistro(record, path === "patrimonio/ativos" ? "internal_code" : "code") : "Gerado automaticamente após salvar"}
+                  readOnly
+                  aria-readonly="true"
+                  className="h-11 rounded-lg border border-border bg-muted px-3 text-sm font-normal text-muted-foreground outline-none"
+                />
+                <small className="font-normal text-muted-foreground">O código será único por empresa e não poderá ser alterado.</small>
+              </label>
+            ) : null}
             {fields.map((field) => {
               const invalido = erros[field.name];
+              const somenteLeitura = editando && path === "patrimonio/ativos" && field.name === "responsible_user_id";
               return (
                 <label key={field.name} className={cn("grid gap-1.5 text-sm font-semibold", field.largura === "cheia" && "md:col-span-2")}>
                   <span>
@@ -434,7 +522,17 @@ export function RecordForm({ title, description, singular, path }: { title: stri
                     {field.required ? <span className="ml-0.5 text-destructive" aria-hidden="true">*</span> : null}
                   </span>
 
-                  {field.source ? (
+                  {somenteLeitura ? (
+                    <>
+                      <input
+                        value={rotuloDaRelacao(record, field.name) || "Nenhum responsável definido"}
+                        readOnly
+                        aria-readonly="true"
+                        className="h-11 rounded-lg border border-border bg-muted px-3 text-sm font-normal text-muted-foreground outline-none"
+                      />
+                      <small className="font-normal text-muted-foreground">Altere o responsável por uma movimentação patrimonial.</small>
+                    </>
+                  ) : field.source ? (
                     <RelationSelect
                       name={field.name}
                       source={field.source}
@@ -442,13 +540,26 @@ export function RecordForm({ title, description, singular, path }: { title: stri
                       labelKeys={field.labelKeys ?? ["name", "description", "code"]}
                       placeholder={field.placeholder}
                       required={field.required}
+                      initialValue={textoDoRegistro(record, field.name)}
+                      initialLabel={rotuloDaRelacao(record, field.name)}
                     />
+                  ) : field.type === "select" ? (
+                    <select
+                      name={field.name}
+                      required={field.required}
+                      defaultValue={textoDoRegistro(record, field.name)}
+                      className={cn("h-11 rounded-lg border bg-surface px-3 text-sm font-normal outline-none focus:border-primary", invalido ? "border-destructive" : "border-border")}
+                    >
+                      <option value="">Selecione uma opção</option>
+                      {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
                   ) : field.type === "textarea" ? (
                     <textarea
                       name={field.name}
                       rows={4}
                       placeholder={field.placeholder}
                       required={field.required}
+                      defaultValue={valorInicial(record, field.name)}
                       className={cn("rounded-lg border bg-surface px-3 py-2 text-sm font-normal outline-none focus:border-primary", invalido ? "border-destructive" : "border-border")}
                     />
                   ) : (
@@ -458,6 +569,7 @@ export function RecordForm({ title, description, singular, path }: { title: stri
                       step={field.type === "number" ? "any" : undefined}
                       placeholder={field.placeholder}
                       required={field.required}
+                      defaultValue={valorInicial(record, field.name)}
                       className={cn("h-11 rounded-lg border bg-surface px-3 text-sm font-normal outline-none focus:border-primary", invalido ? "border-destructive" : "border-border")}
                     />
                   )}
@@ -479,7 +591,7 @@ export function RecordForm({ title, description, singular, path }: { title: stri
           </Link>
           <button type="submit" disabled={pending} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-            {pending ? "Salvando…" : `Salvar ${singular}`}
+            {pending ? "Salvando…" : editando ? "Salvar alterações" : `Salvar ${singular}`}
           </button>
         </div>
       </form>

@@ -9,7 +9,7 @@ insert into public.branches(id,tenant_id,code,name) values('41000000-0000-4000-8
 insert into public.locations(id,tenant_id,branch_id,code,name,type) values('42000000-0000-4000-8000-000000000001','11000000-0000-4000-8000-000000000001','41000000-0000-4000-8000-000000000001','STOCK','Estoque','stock');
 insert into public.locations(id,tenant_id,branch_id,code,name,type) values('42000000-0000-4000-8000-000000000002','11000000-0000-4000-8000-000000000001','41000000-0000-4000-8000-000000000001','STOCK2','Estoque 2','stock');
 insert into public.asset_categories(id,tenant_id,name) values('51000000-0000-4000-8000-000000000001','11000000-0000-4000-8000-000000000001','Equipamentos');
-insert into public.assets(id,tenant_id,internal_code,description,category_id) values('52000000-0000-4000-8000-000000000001','11000000-0000-4000-8000-000000000001','AT-1','Notebook','51000000-0000-4000-8000-000000000001');
+insert into public.assets(id,tenant_id,description,category_id) values('52000000-0000-4000-8000-000000000001','11000000-0000-4000-8000-000000000001','Notebook','51000000-0000-4000-8000-000000000001');
 insert into public.stock_locations(id,tenant_id,location_id,name,code) values('61000000-0000-4000-8000-000000000001','11000000-0000-4000-8000-000000000001','42000000-0000-4000-8000-000000000001','Principal','MAIN');
 insert into public.stock_locations(id,tenant_id,location_id,name,code) values('61000000-0000-4000-8000-000000000002','11000000-0000-4000-8000-000000000001','42000000-0000-4000-8000-000000000002','Secundário','SECOND');
 insert into public.stock_locations(id,tenant_id,location_id,name,code) values('61000000-0000-4000-8000-000000000003','11000000-0000-4000-8000-000000000001','42000000-0000-4000-8000-000000000002','Vazio','EMPTY');

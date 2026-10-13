@@ -8,9 +8,29 @@ export interface InviteUserInput {
   employee: ResourcePayload;
 }
 
+export interface DirectUserInput {
+  email: string;
+  fullName: string;
+  password: string;
+  roles: string[];
+  employee: ResourcePayload;
+}
+
+export interface UserListOptions {
+  busca?: string;
+  pagina?: number;
+  tamanho?: number;
+}
+
+export interface UserListResult {
+  linhas: ResourcePayload[];
+  total: number;
+}
+
 export interface UserAdminService {
-  list(tenantId: string): Promise<ResourcePayload[]>;
+  list(tenantId: string, options?: UserListOptions): Promise<UserListResult>;
   invite(tenantId: string, requestedBy: string, input: InviteUserInput): Promise<ResourcePayload>;
+  create(tenantId: string, requestedBy: string, input: DirectUserInput): Promise<ResourcePayload>;
   changeStatus(tenantId: string, requestedBy: string, membershipId: string, status: "active" | "suspended" | "inactive"): Promise<ResourcePayload>;
 }
 
@@ -23,10 +43,21 @@ export class SupabaseUserAdminService implements UserAdminService {
     this.headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" };
   }
 
-  async list(tenantId: string): Promise<ResourcePayload[]> {
-    const response = await fetch(`${this.baseUrl}/rest/v1/rpc/list_tenant_users`, { method: "POST", headers: this.headers, body: JSON.stringify({ target_tenant_id: tenantId }) });
+  async list(tenantId: string, options: UserListOptions = {}): Promise<UserListResult> {
+    const tamanho = Math.min(Math.max(Math.trunc(options.tamanho ?? 25), 1), 100);
+    const pagina = Math.max(Math.trunc(options.pagina ?? 1), 1);
+    const params = new URLSearchParams({ limit: String(tamanho), offset: String((pagina - 1) * tamanho) });
+    const response = await fetch(`${this.baseUrl}/rest/v1/rpc/list_tenant_users?${params.toString()}`, {
+      method: "POST",
+      headers: { ...this.headers, prefer: "count=exact" },
+      body: JSON.stringify({ target_tenant_id: tenantId, search: options.busca?.trim() || null })
+    });
     if (!response.ok) throw new AppError("Não foi possível listar os usuários.", 500, "USER_LIST_FAILED");
-    return this.asArray(await response.json());
+    const linhas = this.asArray(await response.json());
+    const contentRange = response.headers.get("content-range");
+    const totalMatch = contentRange?.match(/\/(\d+)$/);
+    const total = totalMatch ? Number(totalMatch[1]) : linhas.length;
+    return { linhas, total: Number.isFinite(total) ? total : linhas.length };
   }
 
   async invite(tenantId: string, requestedBy: string, input: InviteUserInput): Promise<ResourcePayload> {
@@ -43,6 +74,39 @@ export class SupabaseUserAdminService implements UserAdminService {
     const membershipId: unknown = await membershipResponse.json();
     await this.audit(tenantId, requestedBy, "invite.user", "tenant_membership", typeof membershipId === "string" ? membershipId : userId, { email: input.email, roles: input.roles });
     return { id: userId, email: input.email, full_name: input.fullName, roles: input.roles, status: "invited" };
+  }
+
+  async create(tenantId: string, requestedBy: string, input: DirectUserInput): Promise<ResourcePayload> {
+    const authResponse = await fetch(`${this.baseUrl}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ email: input.email, password: input.password, email_confirm: true, user_metadata: { full_name: input.fullName } })
+    });
+    if (!authResponse.ok) {
+      if (authResponse.status === 422) throw new AppError("Este e-mail já está cadastrado ou é inválido.", 409, "USER_ALREADY_EXISTS");
+      throw new AppError("Não foi possível cadastrar o usuário.", 502, "USER_CREATE_FAILED");
+    }
+    const authUser = this.asObject(await authResponse.json());
+    const userId = typeof authUser.id === "string" ? authUser.id : null;
+    if (!userId) throw new AppError("O provedor de autenticação retornou um usuário inválido.", 502, "INVALID_AUTH_USER");
+
+    const membershipResponse = await fetch(`${this.baseUrl}/rest/v1/rpc/provision_tenant_membership`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ target_tenant_id: tenantId, target_user_id: userId, target_roles: input.roles, employee_data: input.employee })
+    });
+    if (!membershipResponse.ok) {
+      try {
+        await fetch(`${this.baseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, { method: "DELETE", headers: this.headers });
+      } catch {
+        // Preserve the membership error; the cleanup is best-effort and never exposes credentials.
+      }
+      throw new AppError("O usuário foi criado, mas o vínculo com o tenant falhou.", 500, "MEMBERSHIP_PROVISION_FAILED");
+    }
+
+    const membershipId: unknown = await membershipResponse.json();
+    await this.audit(tenantId, requestedBy, "create.user", "tenant_membership", typeof membershipId === "string" ? membershipId : userId, { email: input.email, roles: input.roles });
+    return { id: userId, email: input.email, full_name: input.fullName, roles: input.roles, status: "active" };
   }
 
   async changeStatus(tenantId: string, requestedBy: string, membershipId: string, status: "active" | "suspended" | "inactive"): Promise<ResourcePayload> {
@@ -73,7 +137,8 @@ export class SupabaseUserAdminService implements UserAdminService {
 
 export class UnconfiguredUserAdminService implements UserAdminService {
   private unavailable(): never { throw new AppError("Administração de usuários não configurada.", 503, "USER_ADMIN_UNCONFIGURED"); }
-  list(): Promise<ResourcePayload[]> { return this.unavailable(); }
+  list(): Promise<UserListResult> { return this.unavailable(); }
   invite(): Promise<ResourcePayload> { return this.unavailable(); }
+  create(): Promise<ResourcePayload> { return this.unavailable(); }
   changeStatus(): Promise<ResourcePayload> { return this.unavailable(); }
 }

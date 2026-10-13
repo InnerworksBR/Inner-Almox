@@ -35,6 +35,11 @@ export interface TenantResourceService {
   update(table: TenantResourceTable, tenantId: string, userId: string, id: string, payload: ResourcePayload): Promise<ResourcePayload>;
 }
 
+export function ordemDeConsulta(ordenar: string | undefined, direcao: "asc" | "desc" | undefined, padrao: string): string {
+  if (!ordenar) return padrao;
+  return `${ordenar}.${direcao === "asc" ? "asc" : "desc"}.nullslast`;
+}
+
 export class SupabaseTenantResourceService implements TenantResourceService {
   private readonly restUrl: string;
   private readonly headers: Record<string, string>;
@@ -49,7 +54,7 @@ export class SupabaseTenantResourceService implements TenantResourceService {
     const tamanho = Math.min(Math.max(options.tamanho ?? 25, 1), 100);
     const pagina = Math.max(options.pagina ?? 1, 1);
     const ordenar = options.ordenar && config.ordenaveis.includes(options.ordenar)
-      ? `${options.ordenar}.${options.direcao === "asc" ? "asc" : "desc"}`
+      ? ordemDeConsulta(options.ordenar, options.direcao, config.ordemPadrao)
       : config.ordemPadrao;
 
     const params = new URLSearchParams({

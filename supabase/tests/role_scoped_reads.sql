@@ -14,9 +14,9 @@ insert into public.tenant_memberships(id,tenant_id,user_id,status,joined_at) val
 insert into public.membership_roles(membership_id,role) values
 ('31000000-0000-0000-0000-000000000001','employee'),('31000000-0000-0000-0000-000000000002','employee');
 
-insert into public.assets(id,tenant_id,internal_code,description,responsible_user_id) values
-('51000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000001','OWN-ASSET','Ativo próprio','21000000-0000-0000-0000-000000000001'),
-('51000000-0000-0000-0000-000000000002','11000000-0000-0000-0000-000000000001','OTHER-ASSET','Ativo alheio','21000000-0000-0000-0000-000000000002');
+insert into public.assets(id,tenant_id,description,responsible_user_id) values
+('51000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000001','Ativo próprio','21000000-0000-0000-0000-000000000001'),
+('51000000-0000-0000-0000-000000000002','11000000-0000-0000-0000-000000000001','Ativo alheio','21000000-0000-0000-0000-000000000002');
 insert into public.asset_terms(tenant_id,asset_id,type,validation_code,content_snapshot,issued_to) values
 ('11000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000001','delivery','OWN-TERM','{}','21000000-0000-0000-0000-000000000001'),
 ('11000000-0000-0000-0000-000000000001','51000000-0000-0000-0000-000000000002','delivery','OTHER-TERM','{}','21000000-0000-0000-0000-000000000002');
@@ -33,7 +33,7 @@ select set_config('request.jwt.claims','{"sub":"21000000-0000-0000-0000-00000000
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000001',true);
 
 select is((select count(*)::integer from public.assets),1,'Employee sees only own asset');
-select is((select internal_code from public.assets),'OWN-ASSET','Employee cannot read another employee asset');
+select is((select internal_code from public.assets),'ATV-000001','Employee cannot read another employee asset');
 select is((select count(*)::integer from public.asset_terms),1,'Employee sees only own term');
 select is((select validation_code from public.asset_terms),'OWN-TERM','Employee cannot read another employee term');
 select is((select count(*)::integer from public.stock_requisitions),1,'Employee sees only own requisition');

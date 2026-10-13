@@ -3,21 +3,25 @@ import { z } from "zod";
 
 import { AppError } from "../../errors/app-error";
 import type { PlatformAdminService } from "../../services/platform-admin-service";
+import type { PlatformHealthService } from "../../services/platform-health-service";
+import type { PlatformListOptions } from "../../services/platform-admin-service";
+import type { PlatformCollection } from "../../services/platform-query-config";
 
-interface Options { platformService:PlatformAdminService }
+interface Options { platformService:PlatformAdminService; healthService:PlatformHealthService }
 const uuid=z.uuid();
 const tenantInput=z.object({slug:z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),legal_name:z.string().trim().min(2).max(200),product_name:z.string().trim().min(2).max(120),hostname:z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/),plan:z.string().trim().regex(/^[a-z][a-z0-9_-]*$/).default("starter"),user_limit:z.number().int().positive().optional(),asset_limit:z.number().int().positive().optional(),vehicle_limit:z.number().int().positive().optional(),storage_limit_bytes:z.number().int().positive().optional(),primary_color:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),secondary_color:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),modules:z.array(z.string().regex(/^[a-z][a-z0-9_-]*$/)).min(1),domain_verified:z.boolean().optional()});
 const tenantUpdate=z.object({legal_name:z.string().trim().min(2).max(200).optional(),product_name:z.string().trim().min(2).max(120).nullable().optional(),status:z.enum(["active","suspended","inactive"]).optional(),plan:z.string().trim().regex(/^[a-z][a-z0-9_-]*$/).optional(),user_limit:z.number().int().positive().nullable().optional(),asset_limit:z.number().int().positive().nullable().optional(),vehicle_limit:z.number().int().positive().nullable().optional(),storage_limit_bytes:z.number().int().positive().nullable().optional()}).refine(value=>Object.keys(value).length>0);
 const planInput=z.object({code:z.string().trim().regex(/^[a-z][a-z0-9_-]*$/),name:z.string().trim().min(2).max(120),description:z.string().trim().max(1000).optional(),user_limit:z.number().int().positive().nullable().optional(),asset_limit:z.number().int().positive().nullable().optional(),vehicle_limit:z.number().int().positive().nullable().optional(),storage_limit_bytes:z.number().int().positive().nullable().optional(),module_keys:z.array(z.string().regex(/^[a-z][a-z0-9_-]*$/)),status:z.enum(["active","inactive"]).optional()});
+const listQuery=z.object({busca:z.string().trim().max(120).optional(),ordenar:z.string().trim().max(80).optional(),direcao:z.enum(["asc","desc"]).default("desc"),pagina:z.coerce.number().int().positive().default(1),tamanho:z.coerce.number().int().positive().max(100).default(25)});
 
 function tokenOf(request:FastifyRequest){const authorization=request.headers.authorization;if(!authorization?.startsWith("Bearer "))throw new AppError("Autenticação da plataforma necessária.",401,"PLATFORM_AUTH_REQUIRED");return authorization.slice(7).trim()}
 function parsed<T>(schema:z.ZodType<T>,value:unknown):T{const result=schema.safeParse(value);if(!result.success)throw new AppError("Dados administrativos inválidos.",422,"VALIDATION_ERROR");return result.data}
 
-export const platformRoutes:FastifyPluginAsync<Options>=async(app,{platformService})=>{
+export const platformRoutes:FastifyPluginAsync<Options>=async(app,{platformService,healthService})=>{
   async function admin(request:FastifyRequest){return platformService.authorize(tokenOf(request))}
-  const collections={tenants:"tenants",domains:"tenant_domains",plans:"platform_plans",modules:"tenant_modules",jobs:"background_jobs",logs:"platform_audit_logs"} as const;
-  for(const [path,collection] of Object.entries(collections))app.get(`/v1/platform/${path}`,async request=>{await admin(request);return{data:await platformService.list(collection)}});
-  app.get("/v1/platform/health",async request=>{await admin(request);return{data:{api:"healthy",database:"healthy",checked_at:new Date().toISOString()}}});
+  const collections:Record<string,PlatformCollection>={tenants:"tenants",domains:"tenant_domains",plans:"platform_plans",modules:"tenant_modules",jobs:"background_jobs",logs:"platform_audit_logs"};
+  for(const [path,collection] of Object.entries(collections))app.get(`/v1/platform/${path}`,async request=>{await admin(request);const query=parsed(listQuery,request.query) as PlatformListOptions;const result=await platformService.list(collection,query);return{data:result.linhas,total:result.total,pagina:query.pagina??1,tamanho:query.tamanho??25}});
+  app.get("/v1/platform/health",async request=>{await admin(request);const query=parsed(listQuery,request.query);const term=query.busca?.toLowerCase();const linhas=(await healthService.check()).filter(line=>!term||[line.servico,line.estado,line.detalhe??""].some(value=>value.toLowerCase().includes(term)));const total=linhas.length;return{data:linhas.slice((query.pagina-1)*query.tamanho,query.pagina*query.tamanho),total,pagina:query.pagina,tamanho:query.tamanho}});
   app.post("/v1/platform/tenants",async(request,reply)=>{const userId=await admin(request);const input=parsed(tenantInput,request.body);const data=await platformService.provision(userId,input);return reply.status(201).send({data})});
   app.patch("/v1/platform/tenants/:id",async request=>{const userId=await admin(request);const id=parsed(z.object({id:uuid}),request.params).id;return{data:await platformService.updateTenant(userId,id,parsed(tenantUpdate,request.body))}});
   app.post("/v1/platform/domains",async(request,reply)=>{const userId=await admin(request);const body=parsed(z.object({tenant_id:uuid,hostname:z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/),is_primary:z.boolean().optional(),verified:z.boolean().optional()}),request.body);const data=await platformService.addDomain(userId,body.tenant_id,body.hostname,body.is_primary??false,body.verified??false);return reply.status(201).send({data})});

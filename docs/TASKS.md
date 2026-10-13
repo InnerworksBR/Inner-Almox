@@ -15,7 +15,8 @@
 - [x] CSV/XLSX auditado, dashboard, notificações internas, agenda horária e SMTP opcional.
 - [x] Campos relacionais com seletores carregados pela API nas principais operações.
 - [x] Ações contextuais para termos, QR, etiquetas, anexos, inventários, requisições e relatórios.
-- [x] Lint, TypeScript, testes, builds de produção e 43 testes pgTAP aprovados.
+- [x] Lint, TypeScript, testes, builds de produção e 77 testes pgTAP aprovados.
+- [x] Roteiro integrado da API, isolamento e regras de negócio: 95/95 critérios aprovados em 13/10/2026.
 
 ## Redesenho da interface (23/09/2026)
 
@@ -30,19 +31,23 @@
       vínculos que faltavam acrescentados (o ativo agora nasce com categoria, filial, localização,
       setor, centro de custo, responsável e fornecedor), visual novo, observações gravadas e erro
       destacado no campo recusado, com mensagens em português.
-- [ ] Levar busca e paginação também às rotas de usuários e do painel da plataforma.
+- [x] Busca e paginação server-side nas rotas de usuários e do painel da plataforma.
+- [x] Dashboards reais de Patrimônio, Almoxarifado e Frota.
+- [x] Registro de jobs, varreduras por tenant e saúde independente de Banco, Redis, Storage e Worker.
+- [x] Matriz de permissões somente leitura com os oito papéis do PRD.
+- [x] Publicação de alertas por e-mail com deduplicação diária.
 
 ## Ajustes antes de homologação
 
-A [auditoria funcional](AUDITORIA-MVP.md) de 23/09/2026 aprovou 89 dos 94 critérios do PRD e
-listou as correções por prioridade. As cinco falhas encontradas foram corrigidas no mesmo dia e o
-roteiro passou a aprovar 95 de 95 critérios. Seguem pendentes as lacunas de interface: colunas que
-não exibem o dado, listagens que compartilham endpoint, telas sem backend e dashboards de módulo.
+A [auditoria funcional](AUDITORIA-MVP.md) de 23/09/2026 aprovou 89 dos 94 critérios do PRD; as cinco
+falhas foram corrigidas no mesmo dia e o roteiro histórico passou a aprovar 95 de 95. As correções
+posteriores de interface e administração estão implementadas e cobertas por testes automatizados;
+isso não equivale à homologação operacional com usuários.
 
-- [ ] Adicionar progresso e prévia ao upload já vinculado automaticamente ao registro.
-- [ ] Completar teste end-to-end autenticado no navegador em desktop e mobile.
+- [x] Adicionar progresso acessível e prévia local de imagem ao upload já vinculado automaticamente ao registro.
+- [ ] Completar teste end-to-end autenticado no navegador em desktop e mobile (login e responsividade da tela de entrada foram conferidos; jornadas autenticadas ainda aguardam login manual).
 - [ ] Configurar SMTP real e validar entregabilidade.
 - [ ] Executar homologação com usuários de cada papel e medir metas de desempenho/acessibilidade.
 - [ ] Configurar domínio, TLS, backups, observabilidade e CI/CD do ambiente de produção.
 
-Uma funcionalidade só deve ser marcada como homologada após validação por usuário responsável, mesmo quando implementação e testes automatizados já estiverem concluídos.
+Uma funcionalidade só deve ser marcada como homologada após validação por usuário responsável, mesmo quando implementação e testes automatizados já estiverem concluídos. A execução de aceite cria registros únicos de teste no banco local e não os remove. Permanecem pendentes a homologação por papel, acessibilidade/desempenho, SMTP real, jornadas autenticadas no navegador e a configuração de produção.
