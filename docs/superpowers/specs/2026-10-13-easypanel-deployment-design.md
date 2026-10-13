@@ -64,6 +64,7 @@ Valores públicos, fornecidos ao build Web:
 Web em runtime:
 
 - `NODE_ENV=production`, `APP_URL` com a origem pública do Web e `API_URL` com o endereço público da API quando SSR precisar chamar API.
+- `PLATFORM_ADMIN_EMAILS` com os administradores globais aprovados; a aplicação Web usa essa lista para exibir as áreas administrativas, e a API usa a mesma lista para o bootstrap global.
 
 API:
 
